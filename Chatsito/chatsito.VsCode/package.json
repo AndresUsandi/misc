@@ -1,0 +1,59 @@
+{
+  "name": "chatsito-vscode",
+  "displayName": "Chatsito",
+  "description": "Visual Studio Code client for the Chatsito AI assistant.",
+  "version": "0.1.0",
+  "publisher": "AndresUsandi",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AndresUsandi/MachineLarning.git"
+  },
+  "activationEvents": [],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "chatsito.openChat",
+        "title": "Chatsito: Open Chat"
+      },
+      {
+        "command": "chatsito.evaluateHumanEval",
+        "title": "Chatsito: Evaluate with HumanEval"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "chatsito-sidebar",
+          "title": "Chatsito",
+          "icon": "$(comment-discussion)"
+        }
+      ]
+    },
+    "views": {
+      "chatsito-sidebar": [
+        {
+          "id": "chatsito.sidebarView",
+          "name": "Chatsito Chat",
+          "type": "webview"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "test": "node ./test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.90.0",
+    "@vscode/test-electron": "^2.5.2",
+    "chai": "^6.2.2",
+    "glob": "^13.0.6",
+    "mocha": "^11.7.6"
+  }
+}

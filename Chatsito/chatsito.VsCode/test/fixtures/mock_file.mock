@@ -1,0 +1,15 @@
+// Mock file for provider tests
+class BaseClass {}
+class ChildClass extends BaseClass {
+    targetMethod() {
+        // Line 5
+        this.calleeMethod();
+    }
+    calleeMethod() {
+        // Line 8
+    }
+    callerMethod() {
+        // Line 11
+        this.targetMethod();
+    }
+}
