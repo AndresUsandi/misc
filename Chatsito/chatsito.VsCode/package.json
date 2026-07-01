@@ -14,7 +14,11 @@
     "type": "git",
     "url": "https://github.com/AndresUsandi/MachineLarning.git"
   },
-  "activationEvents": [],
+  "activationEvents": [
+    "onCommand:chatsito.openChat",
+    "onCommand:chatsito.evaluateHumanEval",
+    "onView:chatsito.sidebarView"
+  ],
   "main": "./extension.js",
   "contributes": {
     "commands": [
