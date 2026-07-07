@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("chatsito.Web")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+af48d9655d950ac6e8d769a129ba221137d2f458")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+34ed09146e5fe83433bcc90646951468cee1f458")]
 [assembly: System.Reflection.AssemblyProductAttribute("chatsito.Web")]
 [assembly: System.Reflection.AssemblyTitleAttribute("chatsito.Web")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
