@@ -2,7 +2,7 @@ class ToolDefinitionProvider {
     constructor() {
         this.tools = [
             {
-                name: 'search_web',
+                name: 'searchWeb',
                 category: 'Misc',
                 isDestructive: false,
                 isPatchingTool: false,
@@ -10,7 +10,7 @@ class ToolDefinitionProvider {
                 adapter: async (args, impl) => await impl(args.query),
                 getProgressText: args => 'Searching the web for "' + (args.query || '') + '"...',
                 schema: {
-                    name: "search_web",
+                    name: "searchWeb",
                     description: "Performs a web search for a given query. Returns a summary of relevant information along with URL citations. Use this when you need up-to-date information, news, or factual answers that you don't know.",
                     parameters: {
                         type: "object",
@@ -25,7 +25,7 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'get_current_date_time',
+                name: 'getCurrentDateTime',
                 category: 'Misc',
                 isDestructive: false,
                 isPatchingTool: false,
@@ -33,7 +33,7 @@ class ToolDefinitionProvider {
                 adapter: async (args, impl) => await impl(args),
                 getProgressText: args => 'Getting current date and time...',
                 schema: {
-                    name: "get_current_date_time",
+                    name: "getCurrentDateTime",
                     description: "Gets the current date and time. Use this to determine the current date, time, and day of the week if you are unsure.",
                     parameters: {
                         type: "object",
@@ -43,7 +43,7 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'execute_http_request',
+                name: 'executeHttpRequest',
                 category: 'Misc',
                 isDestructive: false,
                 isPatchingTool: false,
@@ -51,7 +51,7 @@ class ToolDefinitionProvider {
                 adapter: async (args, impl) => await impl(args.url, args.method, args.body),
                 getProgressText: args => 'Executing HTTP request to "' + (args.url || '') + '"...',
                 schema: {
-                    name: "execute_http_request",
+                    name: "executeHttpRequest",
                     description: "Executes an arbitrary HTTP request (GET or POST) and returns the raw response body. Use this to fetch specific URLs, interact with APIs, or follow up on search results. You must parse the raw result yourself."
                         + " NOTE: please use sparringly. Unlike the search_web tool, this tool causes the context window to explode and provides a suboptimal user experience. Only execute this tool if it is strictly necessary or if the user explicitly asks you to look for something online.",
                     parameters: {
@@ -66,26 +66,26 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'search_workspace',
+                name: 'searchWorkspace',
                 category: 'Coding Assistant',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/core_coding_assistant/searchWorkspace',
-                adapter: async (args, impl) => await impl(args.query, args.file_glob),
+                adapter: async (args, impl) => await impl(args.query, args.fileGlob),
                 getProgressText: args => 'Searching workspace for "' + (args.query || '') + '"...',
                 schema: {
-                    name: "search_workspace",
-                    description: "Searches the current workspace files recursively for a specific text, code query, or symbol name. Returns matching lines and file paths.",
+                    name: "searchWorkspace",
+                    description: "Searches the current workspace files recursively for a specific text, code query, or symbol name. Returns matching lines and file paths. NOTE: Search is literal by default. Filter glob paths must use forward slashes.",
                     parameters: {
                         type: "object",
                         properties: {
                             query: {
                                 type: "string",
-                                description: "The text, keyword, or code symbol to search for."
+                                description: "The literal text, keyword, or code symbol to search for in workspace files."
                             },
-                            file_glob: {
+                            fileGlob: {
                                 type: "string",
-                                description: "Optional glob pattern to filter target files, e.g. '**/*.cs' or '**/*.js'."
+                                description: "Optional glob pattern to restrict target files, e.g. '**/*.cs' or '**/*.js'. Relative to the workspace root."
                             }
                         },
                         required: ["query"]
@@ -93,38 +93,38 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'get_full_graph',
+                name: 'getFullGraph',
                 category: 'Coding Assistant',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/core_coding_assistant/getFullGraph',
-                adapter: async (args, impl) => await impl(args.file_path, parseInt(args.line_number, 10), parseInt(args.character_number || '1', 10)),
+                adapter: async (args, impl) => await impl(args.filePath, parseInt(args.lineNumber, 10), parseInt(args.characterNumber || '1', 10)),
                 getProgressText: args => 'Generating full dependency call graph...',
                 schema: {
-                    name: "get_full_graph",
+                    name: "getFullGraph",
                     description: "Generates a full backward invocation dependency tree (call graph) for a symbol at a specific location, listing all callers recursively up to the root caller methods. Detects and stops on circular dependencies.",
                     parameters: {
                         type: "object",
                         properties: {
-                            file_path: {
+                            filePath: {
                                 type: "string",
-                                description: "The relative or absolute file path containing the symbol."
+                                description: "The relative or absolute file path containing the symbol. Must point to a file that exists."
                             },
-                            line_number: {
+                            lineNumber: {
                                 type: "integer",
-                                description: "The 1-based line number of the symbol declaration or reference."
+                                description: "The 1-based line number of the symbol declaration or reference (1 represents the first line). Must be positive."
                             },
-                            character_number: {
+                            characterNumber: {
                                 type: "integer",
-                                description: "Optional. The 1-based character/column offset of the symbol on that line. Defaults to 1."
+                                description: "Optional. The 1-based character/column offset of the symbol on that line (1 represents the first character). Must be positive. Defaults to 1."
                             }
                         },
-                        required: ["file_path", "line_number"]
+                        required: ["filePath", "lineNumber"]
                     }
                 }
             },
             {
-                name: 'get_current_editor_context',
+                name: 'getCurrentEditorContext',
                 category: 'Coding Assistant',
                 isDestructive: false,
                 isPatchingTool: false,
@@ -132,7 +132,7 @@ class ToolDefinitionProvider {
                 adapter: async (args, impl) => await impl(),
                 getProgressText: args => 'Getting current editor context...',
                 schema: {
-                    name: "get_current_editor_context",
+                    name: "getCurrentEditorContext",
                     description: "Gets the context (file path, cursor line, selected text, and surrounding code lines) of the active document in the editor.",
                     parameters: {
                         type: "object",
@@ -141,444 +141,444 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'read_file',
+                name: 'readFile',
                 category: 'Coding Assistant',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/core_coding_assistant/readFile',
-                adapter: async (args, impl) => await impl(args.file_path),
-                getProgressText: args => 'Reading file ' + (args.file_path || '') + '...',
+                adapter: async (args, impl) => await impl(args.filePath),
+                getProgressText: args => 'Reading file ' + (args.filePath || '') + '...',
                 schema: {
-                    name: "read_file",
-                    description: "Reads the entire content of a file in the workspace.",
+                    name: "readFile",
+                    description: "Reads the entire content of a file in the workspace. Use this to inspect file contents before editing or analyzing. File must exist on disk.",
                     parameters: {
                         type: "object",
                         properties: {
-                            file_path: {
+                            filePath: {
                                 type: "string",
-                                description: "The relative or absolute path of the file to read."
+                                description: "The relative or absolute path of the file to read. Ensure correct capitalization and slashes."
                             }
                         },
-                        required: ["file_path"]
+                        required: ["filePath"]
                     }
                 }
             },
             {
-                name: 'get_context_at_location',
+                name: 'getContextAtLocation',
                 category: 'Coding Assistant',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/core_coding_assistant/getContextAtLocation',
-                adapter: async (args, impl) => await impl.getContextAtLocation(args.file_path, Math.max(0, parseInt(args.line, 10) - 1), Math.max(0, parseInt(args.character, 10) - 1), parseInt(args.call_stack_level || '2', 10)),
-                getProgressText: args => 'Getting context at location ' + (args.file_path || '') + ':' + (args.line || 0) + '...',
+                adapter: async (args, impl) => await impl.getContextAtLocation(args.filePath, Math.max(0, parseInt(args.line, 10) - 1), Math.max(0, parseInt(args.character, 10) - 1), parseInt(args.callStackLevel || '2', 10)),
+                getProgressText: args => 'Getting context at location ' + (args.filePath || '') + ':' + (args.line || 0) + '...',
                 schema: {
-                    name: "get_context_at_location",
-                    description: "Gets the code context (e.g. method/class body) enclosing the specified 1-based line and character location, and traces its callers recursively.",
+                    name: "getContextAtLocation",
+                    description: "Gets the code context (e.g. method/class body) enclosing the specified 1-based line and character location, and traces its callers recursively. Useful for understanding symbol context.",
                     parameters: {
                         type: "object",
                         properties: {
-                            file_path: {
+                            filePath: {
                                 type: "string",
-                                description: "The relative or absolute path of the file."
+                                description: "The relative or absolute path of the file containing the symbol. Must exist on disk."
                             },
                             line: {
                                 type: "integer",
-                                description: "The 1-based line number."
+                                description: "The 1-based line number inside the file (1 is the first line). Must be positive."
                             },
                             character: {
                                 type: "integer",
-                                description: "The 1-based character/column position on the line."
+                                description: "The 1-based character/column position on the line (1 is the first column). Must be positive."
                             },
-                            call_stack_level: {
+                            callStackLevel: {
                                 type: "integer",
-                                description: "Optional. Number of call stack levels to trace. Defaults to 2."
+                                description: "Optional. Number of call stack levels to trace recursively. Defaults to 2."
                             }
                         },
-                        required: ["file_path", "line", "character"]
+                        required: ["filePath", "line", "character"]
                     }
                 }
             },
             {
-                name: 'find_definition',
+                name: 'findDefinition',
                 category: 'Coding Assistant',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/core_coding_assistant/findDefinition',
-                adapter: async (args, impl) => await impl(args.file_path, Math.max(0, parseInt(args.line, 10) - 1), Math.max(0, parseInt(args.character, 10) - 1)),
+                adapter: async (args, impl) => await impl(args.filePath, Math.max(0, parseInt(args.line, 10) - 1), Math.max(0, parseInt(args.character, 10) - 1)),
                 getProgressText: args => 'Finding definition...',
                 schema: {
-                    name: "find_definition",
-                    description: "Finds the definition location (file, range) of the symbol at the given 1-based line and character location.",
+                    name: "findDefinition",
+                    description: "Finds the definition location (file, range) of the symbol at the given 1-based line and character location using language server providers.",
                     parameters: {
                         type: "object",
                         properties: {
-                            file_path: {
+                            filePath: {
                                 type: "string",
-                                description: "The relative or absolute path of the file containing the symbol reference."
+                                description: "The relative or absolute path of the file containing the symbol reference. Must exist."
                             },
                             line: {
                                 type: "integer",
-                                description: "The 1-based line number."
+                                description: "The 1-based line number where the reference is located (1 is the first line). Must be positive."
                             },
                             character: {
                                 type: "integer",
-                                description: "The 1-based character/column position of the symbol reference."
+                                description: "The 1-based character/column position of the symbol reference (1 is the first column). Must be positive."
                             }
                         },
-                        required: ["file_path", "line", "character"]
+                        required: ["filePath", "line", "character"]
                     }
                 }
             },
             {
-                name: 'find_references',
+                name: 'findReferences',
                 category: 'Coding Assistant',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/core_coding_assistant/findReferences',
-                adapter: async (args, impl) => await impl(args.file_path, Math.max(0, parseInt(args.line, 10) - 1), Math.max(0, parseInt(args.character, 10) - 1)),
+                adapter: async (args, impl) => await impl(args.filePath, Math.max(0, parseInt(args.line, 10) - 1), Math.max(0, parseInt(args.character, 10) - 1)),
                 getProgressText: args => 'Finding references...',
                 schema: {
-                    name: "find_references",
-                    description: "Finds all references (locations and line texts) of the symbol at the given 1-based line and character location.",
+                    name: "findReferences",
+                    description: "Finds all references (locations and line texts) of the symbol at the given 1-based line and character location across the workspace.",
                     parameters: {
                         type: "object",
                         properties: {
-                            file_path: {
+                            filePath: {
                                 type: "string",
-                                description: "The relative or absolute path of the file containing the symbol reference."
+                                description: "The relative or absolute path of the file containing the symbol reference. Must exist."
                             },
                             line: {
                                 type: "integer",
-                                description: "The 1-based line number."
+                                description: "The 1-based line number where the reference is located (1 is the first line). Must be positive."
                             },
                             character: {
                                 type: "integer",
-                                description: "The 1-based character/column position of the symbol reference."
+                                description: "The 1-based character/column position of the symbol reference (1 is the first column). Must be positive."
                             }
                         },
-                        required: ["file_path", "line", "character"]
+                        required: ["filePath", "line", "character"]
                     }
                 }
             },
             {
-                name: 'get_symbols_in_file',
+                name: 'getSymbolsInFile',
                 category: 'Coding Assistant',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/core_coding_assistant/getSymbolsInFile',
-                adapter: async (args, impl) => await impl(args.file_path),
-                getProgressText: args => 'Getting symbols in ' + (args.file_path || '') + '...',
+                adapter: async (args, impl) => await impl(args.filePath),
+                getProgressText: args => 'Getting symbols in ' + (args.filePath || '') + '...',
                 schema: {
-                    name: "get_symbols_in_file",
-                    description: "Gets structural symbols (classes, methods, variables, etc.) defined in a file.",
+                    name: "getSymbolsInFile",
+                    description: "Gets structural symbols (classes, methods, variables, interface declarations, etc.) defined in a specific file. Target file must exist.",
                     parameters: {
                         type: "object",
                         properties: {
-                            file_path: {
+                            filePath: {
                                 type: "string",
                                 description: "The relative or absolute path of the file."
                             }
                         },
-                        required: ["file_path"]
+                        required: ["filePath"]
                     }
                 }
             },
             {
-                name: 'get_diagnostics',
+                name: 'getDiagnostics',
                 category: 'Coding Assistant',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/core_coding_assistant/getDiagnostics',
-                adapter: async (args, impl) => await impl(args.file_path),
+                adapter: async (args, impl) => await impl(args.filePath),
                 getProgressText: args => 'Getting diagnostics...',
                 schema: {
-                    name: "get_diagnostics",
-                    description: "Gets the active compiler/linter diagnostics (errors, warnings, etc.) in the workspace or for a specific file.",
+                    name: "getDiagnostics",
+                    description: "Gets the active compiler/linter diagnostics (errors, warnings, hints, etc.) in the workspace or for a specific file.",
                     parameters: {
                         type: "object",
                         properties: {
-                            file_path: {
+                            filePath: {
                                 type: "string",
-                                description: "Optional relative or absolute path of the file to filter diagnostics."
+                                description: "Optional relative or absolute path of the file to filter diagnostics. If omitted, returns diagnostics for the entire workspace."
                             }
                         }
                     }
                 }
             },
             {
-                name: 'insert_code',
+                name: 'insertCode',
                 category: 'Uncategorized',
                 isDestructive: true,
                 isPatchingTool: true,
                 modulePath: './tools/code_modification/insertCode',
-                adapter: async (args, impl) => await impl(args.file_path, Math.max(0, parseInt(args.line, 10) - 1), Math.max(0, parseInt(args.character, 10) - 1), args.text_to_insert),
-                getProgressText: args => 'Inserting code in ' + (args.file_path || '') + '...',
+                adapter: async (args, impl) => await impl(args),
+                getProgressText: args => 'Inserting code in ' + (args.filePath || '') + '...',
                 schema: {
-                    name: "insert_code",
-                    description: "Inserts code at a validated location in a file.",
+                    name: "insertCode",
+                    description: "Inserts code at a validated 1-based line and character location in a file. Target file must exist on disk.",
                     parameters: {
                         type: "object",
                         properties: {
-                            file_path: { type: "string", description: "The relative or absolute path of the file." },
-                            line: { type: "integer", description: "The 1-based line number where the insertion starts." },
-                            character: { type: "integer", description: "The 1-based character offset on the line." },
-                            text_to_insert: { type: "string", description: "The code text to insert." }
+                            filePath: { type: "string", description: "The relative or absolute path of the file." },
+                            line: { type: "integer", description: "The 1-based line number where the insertion starts (1 is the first line). Must be positive." },
+                            character: { type: "integer", description: "The 1-based character offset on the line (1 is the first character). Must be positive." },
+                            textToInsert: { type: "string", description: "The code text to insert." }
                         },
-                        required: ["file_path", "line", "character", "text_to_insert"]
+                        required: ["filePath", "line", "character", "textToInsert"]
                     }
                 }
             },
             {
-                name: 'replace_code',
+                name: 'replaceCode',
                 category: 'Uncategorized',
                 isDestructive: true,
                 isPatchingTool: true,
                 modulePath: './tools/code_modification/replaceCode',
-                adapter: async (args, impl) => await impl(args.file_path, Math.max(0, parseInt(args.start_line, 10) - 1), Math.max(0, parseInt(args.start_char, 10) - 1), Math.max(0, parseInt(args.end_line, 10) - 1), Math.max(0, parseInt(args.end_char, 10) - 1), args.text_to_replace, args.expected_original_text),
-                getProgressText: args => 'Replacing code in ' + (args.file_path || '') + '...',
+                adapter: async (args, impl) => await impl(args),
+                getProgressText: args => 'Replacing code in ' + (args.filePath || '') + '...',
                 schema: {
-                    name: "replace_code",
-                    description: "Replaces a validated range of code after checking that the original text still matches.",
+                    name: "replaceCode",
+                    description: "Replaces a validated range of code with new, modified code. CRITICAL: The new code ('textToReplace') must be different from the original code ('expectedOriginalText'). A replacement that is identical to the original text will be rejected as it results in no changes.",
                     parameters: {
                         type: "object",
                         properties: {
-                            file_path: { type: "string", description: "The relative or absolute path of the file." },
-                            start_line: { type: "integer", description: "The 1-based start line of the range to replace." },
-                            start_char: { type: "integer", description: "The 1-based start character offset of the range." },
-                            end_line: { type: "integer", description: "The 1-based end line of the range to replace." },
-                            end_char: { type: "integer", description: "The 1-based end character offset of the range." },
-                            text_to_replace: { type: "string", description: "The new replacement text." },
-                            expected_original_text: { type: "string", description: "Required. The exact text currently present at the specified range. This is CRITICAL for the system to auto-correct line number discrepancies and prevent stale edits." }
+                            filePath: { type: "string", description: "The relative or absolute path of the file." },
+                            startLine: { type: "integer", description: "The 1-based start line of the range to replace (inclusive)." },
+                            startChar: { type: "integer", description: "Optional. The 1-based start character offset of the range (inclusive, 1 is the first character). If omitted, the replacement starts from character 1 of startLine." },
+                            endLine: { type: "integer", description: "The 1-based end line of the range to replace (inclusive)." },
+                            endChar: { type: "integer", description: "Optional. The 1-based end character offset of the range (inclusive). If omitted, the replacement extends to the end of endLine." },
+                            textToReplace: { type: "string", description: "The new replacement text. This MUST contain the actual modifications or completed code implementation, and must not be identical to expectedOriginalText." },
+                            expectedOriginalText: { type: "string", description: "Required. The exact text currently present at the specified range. This is CRITICAL for the system to auto-correct line number discrepancies and prevent stale edits." }
                         },
-                        required: ["file_path", "start_line", "start_char", "end_line", "end_char", "text_to_replace", "expected_original_text"]
+                        required: ["filePath", "startLine", "endLine", "textToReplace", "expectedOriginalText"]
                     }
                 }
             },
             {
-                name: 'delete_code',
+                name: 'deleteCode',
                 category: 'Uncategorized',
                 isDestructive: true,
                 isPatchingTool: true,
                 modulePath: './tools/code_modification/deleteCode',
-                adapter: async (args, impl) => await impl(args.file_path, Math.max(0, parseInt(args.start_line, 10) - 1), Math.max(0, parseInt(args.start_char, 10) - 1), Math.max(0, parseInt(args.end_line, 10) - 1), Math.max(0, parseInt(args.end_char, 10) - 1), args.expected_original_text),
-                getProgressText: args => 'Deleting code in ' + (args.file_path || '') + '...',
+                adapter: async (args, impl) => await impl(args),
+                getProgressText: args => 'Deleting code in ' + (args.filePath || '') + '...',
                 schema: {
-                    name: "delete_code",
-                    description: "Deletes a validated range of code.",
+                    name: "deleteCode",
+                    description: "Deletes a validated range of code. CRITICAL: expectedOriginalText must match the text to be deleted exactly.",
                     parameters: {
                         type: "object",
                         properties: {
-                            file_path: { type: "string", description: "The relative or absolute path of the file." },
-                            start_line: { type: "integer", description: "The 1-based start line of the range to delete." },
-                            start_char: { type: "integer", description: "The 1-based start character offset of the range." },
-                            end_line: { type: "integer", description: "The 1-based end line of the range to delete." },
-                            end_char: { type: "integer", description: "The 1-based end character offset of the range." },
-                            expected_original_text: { type: "string", description: "Required. The exact text currently present at the specified range. This is CRITICAL for the system to auto-correct line number discrepancies and prevent stale edits." }
+                            filePath: { type: "string", description: "The relative or absolute path of the file." },
+                            startLine: { type: "integer", description: "The 1-based start line of the range to delete (inclusive, 1 is the first line). Must be positive." },
+                            startChar: { type: "integer", description: "The 1-based start character offset of the range (inclusive, 1 is the first character). Must be positive." },
+                            endLine: { type: "integer", description: "The 1-based end line of the range to delete (inclusive). Must be positive." },
+                            endChar: { type: "integer", description: "The 1-based end character offset of the range (inclusive). Must be positive." },
+                            expectedOriginalText: { type: "string", description: "Required. The exact text currently present at the specified range. Must match exactly, including leading spaces, tabs, newlines, and trailing characters, otherwise the edit will be rejected." }
                         },
-                        required: ["file_path", "start_line", "start_char", "end_line", "end_char", "expected_original_text"]
+                        required: ["filePath", "startLine", "startChar", "endLine", "endChar", "expectedOriginalText"]
                     }
                 }
             },
             {
-                name: 'rename_symbol',
+                name: 'renameSymbol',
                 category: 'Uncategorized',
                 isDestructive: true,
                 isPatchingTool: true,
                 modulePath: './tools/code_modification/renameSymbol',
-                adapter: async (args, impl) => await impl(args.file_path, Math.max(0, parseInt(args.line, 10) - 1), Math.max(0, parseInt(args.character, 10) - 1), args.new_name),
-                getProgressText: args => 'Renaming symbol in ' + (args.file_path || '') + '...',
+                adapter: async (args, impl) => await impl(args),
+                getProgressText: args => 'Renaming symbol in ' + (args.filePath || '') + '...',
                 schema: {
-                    name: "rename_symbol",
-                    description: "Uses the language server to safely rename a symbol across the workspace.",
+                    name: "renameSymbol",
+                    description: "Uses the language server to safely rename a symbol across the workspace, updating all imports and references.",
                     parameters: {
                         type: "object",
                         properties: {
-                            file_path: { type: "string", description: "The relative or absolute path of the file." },
-                            line: { type: "integer", description: "The 1-based line number of the symbol declaration/reference." },
-                            character: { type: "integer", description: "The 1-based character offset of the symbol." },
-                            new_name: { type: "string", description: "The new name for the symbol." }
+                            filePath: { type: "string", description: "The relative or absolute path of the file containing the symbol reference." },
+                            line: { type: "integer", description: "The 1-based line number of the symbol declaration/reference. Must be positive." },
+                            character: { type: "integer", description: "The 1-based character offset of the symbol. Must be positive." },
+                            newName: { type: "string", description: "The new name for the symbol. Must be a valid programming language identifier (alphanumeric and underscores, not starting with a digit)." }
                         },
-                        required: ["file_path", "line", "character", "new_name"]
+                        required: ["filePath", "line", "character", "newName"]
                     }
                 }
             },
             {
-                name: 'move_file',
+                name: 'moveFile',
                 category: 'Uncategorized',
                 isDestructive: true,
                 isPatchingTool: true,
                 modulePath: './tools/code_modification/moveFile',
-                adapter: async (args, impl) => await impl(args.source_path, args.dest_path),
-                getProgressText: args => 'Moving file ' + (args.source_path || '') + ' to ' + (args.dest_path || '') + '...',
+                adapter: async (args, impl) => await impl(args),
+                getProgressText: args => 'Moving file ' + (args.sourcePath || '') + ' to ' + (args.destPath || '') + '...',
                 schema: {
-                    name: "move_file",
-                    description: "Moves or renames a file and updates references/imports where supported.",
+                    name: "moveFile",
+                    description: "Moves or renames a file and updates references/imports where supported. Destination directory must already exist on disk.",
                     parameters: {
                         type: "object",
                         properties: {
-                            source_path: { type: "string", description: "The source file path." },
-                            dest_path: { type: "string", description: "The destination file path." }
+                            sourcePath: { type: "string", description: "The source file path to move. Must exist." },
+                            destPath: { type: "string", description: "The destination file path. Ensure the parent directory exists." }
                         },
-                        required: ["source_path", "dest_path"]
+                        required: ["sourcePath", "destPath"]
                     }
                 }
             },
             {
-                name: 'move_type',
+                name: 'moveType',
                 category: 'Uncategorized',
                 isDestructive: true,
                 isPatchingTool: true,
                 modulePath: './tools/code_modification/moveType',
-                adapter: async (args, impl) => await impl(args.file_path, args.type_name, args.dest_file_path),
-                getProgressText: args => 'Moving type ' + (args.type_name || '') + ' to ' + (args.dest_file_path || '') + '...',
+                adapter: async (args, impl) => await impl(args),
+                getProgressText: args => 'Moving type ' + (args.typeName || '') + ' to ' + (args.destFilePath || '') + '...',
                 schema: {
-                    name: "move_type",
-                    description: "Moves a class/type to another file or namespace where supported.",
+                    name: "moveType",
+                    description: "Moves a class/type to another file or namespace where supported. Updates references automatically.",
                     parameters: {
                         type: "object",
                         properties: {
-                            file_path: { type: "string", description: "The source file path where the type is defined." },
-                            type_name: { type: "string", description: "The name of the class or type to move." },
-                            dest_file_path: { type: "string", description: "The destination file path." }
+                            filePath: { type: "string", description: "The source file path where the type is defined." },
+                            typeName: { type: "string", description: "The name of the class or type to move. Must exist." },
+                            destFilePath: { type: "string", description: "The destination file path. Must be a valid write target path." }
                         },
-                        required: ["file_path", "type_name", "dest_file_path"]
+                        required: ["filePath", "typeName", "destFilePath"]
                     }
                 }
             },
             {
-                name: 'extract_method',
+                name: 'extractMethod',
                 category: 'Uncategorized',
                 isDestructive: true,
                 isPatchingTool: true,
                 modulePath: './tools/code_modification/extractMethod',
-                adapter: async (args, impl) => await impl(args.file_path, Math.max(0, parseInt(args.start_line, 10) - 1), Math.max(0, parseInt(args.start_char, 10) - 1), Math.max(0, parseInt(args.end_line, 10) - 1), Math.max(0, parseInt(args.end_char, 10) - 1), args.new_method_name),
-                getProgressText: args => 'Extracting method in ' + (args.file_path || '') + '...',
+                adapter: async (args, impl) => await impl(args),
+                getProgressText: args => 'Extracting method in ' + (args.filePath || '') + '...',
                 schema: {
-                    name: "extract_method",
-                    description: "Extracts selected code into a new method/function.",
+                    name: "extractMethod",
+                    description: "Extracts selected code range into a new method/function.",
                     parameters: {
                         type: "object",
                         properties: {
-                            file_path: { type: "string", description: "The relative or absolute path of the file." },
-                            start_line: { type: "integer", description: "The 1-based start line of the selected code." },
-                            start_char: { type: "integer", description: "The 1-based start character offset." },
-                            end_line: { type: "integer", description: "The 1-based end line of the selected code." },
-                            end_char: { type: "integer", description: "The 1-based end character offset." },
-                            new_method_name: { type: "string", description: "The name of the new method/function." }
+                            filePath: { type: "string", description: "The relative or absolute path of the file." },
+                            startLine: { type: "integer", description: "The 1-based start line of the selected code (inclusive). Must be positive." },
+                            startChar: { type: "integer", description: "The 1-based start character offset (inclusive). Must be positive." },
+                            endLine: { type: "integer", description: "The 1-based end line of the selected code (inclusive). Must be positive." },
+                            endChar: { type: "integer", description: "The 1-based end character offset (inclusive). Must be positive." },
+                            newMethodName: { type: "string", description: "The name of the new method/function. Must be a valid identifier name." }
                         },
-                        required: ["file_path", "start_line", "start_char", "end_line", "end_char", "new_method_name"]
+                        required: ["filePath", "startLine", "startChar", "endLine", "endChar", "newMethodName"]
                     }
                 }
             },
             {
-                name: 'format_file',
+                name: 'formatFile',
                 category: 'Uncategorized',
                 isDestructive: true,
                 isPatchingTool: true,
                 modulePath: './tools/code_modification/formatFile',
-                adapter: async (args, impl) => await impl(args.file_path),
-                getProgressText: args => 'Formatting file ' + (args.file_path || '') + '...',
+                adapter: async (args, impl) => await impl(args),
+                getProgressText: args => 'Formatting file ' + (args.filePath || '') + '...',
                 schema: {
-                    name: "format_file",
-                    description: "Runs the configured formatter on a file.",
+                    name: "formatFile",
+                    description: "Runs the configured formatter (e.g. Prettier, Black, dotnet format) on a file. File must exist.",
                     parameters: {
                         type: "object",
                         properties: {
-                            file_path: { type: "string", description: "The relative or absolute path of the file to format." }
+                            filePath: { type: "string", description: "The relative or absolute path of the file to format." }
                         },
-                        required: ["file_path"]
+                        required: ["filePath"]
                     }
                 }
             },
             {
-                name: 'organize_imports',
+                name: 'organizeImports',
                 category: 'Uncategorized',
                 isDestructive: true,
                 isPatchingTool: true,
                 modulePath: './tools/code_modification/organizeImports',
-                adapter: async (args, impl) => await impl(args.file_path),
-                getProgressText: args => 'Organizing imports in ' + (args.file_path || '') + '...',
+                adapter: async (args, impl) => await impl(args),
+                getProgressText: args => 'Organizing imports in ' + (args.filePath || '') + '...',
                 schema: {
-                    name: "organize_imports",
-                    description: "Adds, removes, or sorts imports/usings/includes for a file.",
+                    name: "organizeImports",
+                    description: "Adds, removes, or sorts imports/usings/includes for a file using the language server provider.",
                     parameters: {
                         type: "object",
                         properties: {
-                            file_path: { type: "string", description: "The relative or absolute path of the file." }
+                            filePath: { type: "string", description: "The relative or absolute path of the target file. Must exist." }
                         },
-                        required: ["file_path"]
+                        required: ["filePath"]
                     }
                 }
             },
             {
-                name: 'list_workspace_files',
+                name: 'listWorkspaceFiles',
                 category: 'Project Understanding',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/project_understanding/listWorkspaceFiles',
                 adapter: async (args, impl) => await impl(args.filterGlob),
-                getProgressText: args => `Executing tool list_workspace_files...`,
+                getProgressText: args => `Executing tool listWorkspaceFiles...`,
                 schema: {
-                    name: "list_workspace_files",
-                    description: "Lists workspace files, optionally filtered by glob, extension, folder, or ignore rules.",
+                    name: "listWorkspaceFiles",
+                    description: "Lists workspace files recursively, optionally filtered by glob, extension, folder, or ignore rules.",
                     parameters: {
                         type: "object",
                         properties: {
-                            filterGlob: { type: "string", description: "Optional glob pattern to filter, e.g. '**/*.cs'." }
+                            filterGlob: { type: "string", description: "Optional glob pattern to filter, e.g. '**/*.cs' or '**/*.py'. Relative to the workspace root." }
                         }
                     }
                 }
             },
             {
-                name: 'list_directory',
+                name: 'listDirectory',
                 category: 'Project Understanding',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/project_understanding/listDirectory',
                 adapter: async (args, impl) => await impl(args.dirPath),
-                getProgressText: args => `Executing tool list_directory...`,
+                getProgressText: args => `Executing tool listDirectory...`,
                 schema: {
-                    name: "list_directory",
-                    description: "Lists files and subdirectories under a specific workspace folder.",
+                    name: "listDirectory",
+                    description: "Lists files and subdirectories directly under a specific folder (not recursive). Folder must exist.",
                     parameters: {
                         type: "object",
                         properties: {
-                            dirPath: { type: "string", description: "Optional relative or absolute directory path." }
+                            dirPath: { type: "string", description: "Optional relative or absolute directory path to list. If omitted, lists the workspace root folder." }
                         }
                     }
                 }
             },
             {
-                name: 'find_symbol',
+                name: 'findSymbol',
                 category: 'Project Understanding',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/project_understanding/findSymbol',
                 adapter: async (args, impl) => await impl(args.symbolName),
-                getProgressText: args => `Executing tool find_symbol...`,
+                getProgressText: args => `Executing tool findSymbol...`,
                 schema: {
-                    name: "find_symbol",
-                    description: "Finds a symbol by exact or fuzzy name across the workspace.",
+                    name: "findSymbol",
+                    description: "Finds structural code symbols (classes, methods, variables, interfaces) by exact or fuzzy name across the workspace.",
                     parameters: {
                         type: "object",
                         properties: {
-                            symbolName: { type: "string", description: "The name of the symbol to search for." }
+                            symbolName: { type: "string", description: "The name of the symbol to search for (e.g., ClassName or methodName)." }
                         },
                         required: ["symbolName"]
                     }
                 }
             },
             {
-                name: 'search_symbols',
+                name: 'searchSymbols',
                 category: 'Project Understanding',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/project_understanding/searchSymbols',
                 adapter: async (args, impl) => await impl(args.query),
-                getProgressText: args => `Executing tool search_symbols...`,
+                getProgressText: args => `Executing tool searchSymbols...`,
                 schema: {
-                    name: "search_symbols",
-                    description: "Searches workspace symbols by name, kind, namespace, class, or partial match.",
+                    name: "searchSymbols",
+                    description: "Searches workspace symbols by name, kind, namespace, class, or partial match using language server providers.",
                     parameters: {
                         type: "object",
                         properties: {
@@ -589,120 +589,120 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'find_implementations',
+                name: 'findImplementations',
                 category: 'Project Understanding',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/project_understanding/findImplementations',
-                adapter: async (args, impl) => await impl(args.file_path, args.line !== undefined ? Math.max(0, parseInt(args.line, 10) - 1) : undefined, args.character !== undefined ? Math.max(0, parseInt(args.character, 10) - 1) : undefined),
-                getProgressText: args => `Executing tool find_implementations...`,
+                adapter: async (args, impl) => await impl(args.filePath, args.line !== undefined ? Math.max(0, parseInt(args.line, 10) - 1) : undefined, args.character !== undefined ? Math.max(0, parseInt(args.character, 10) - 1) : undefined),
+                getProgressText: args => `Executing tool findImplementations...`,
                 schema: {
-                    name: "find_implementations",
-                    description: "Finds implementations of an interface, abstract method, virtual method, or base type.",
+                    name: "findImplementations",
+                    description: "Finds implementations of an interface, abstract method, virtual method, or base type across the workspace.",
                     parameters: {
                         type: "object",
                         properties: {
-                            file_path: { type: "string", description: "The relative or absolute file path containing the type/member." },
-                            line: { type: "integer", description: "The 1-based line number of the symbol declaration." },
-                            character: { type: "integer", description: "The 1-based character/column offset." }
+                            filePath: { type: "string", description: "The relative or absolute file path containing the type/member declaration." },
+                            line: { type: "integer", description: "The 1-based line number of the symbol declaration. Must be positive." },
+                            character: { type: "integer", description: "The 1-based character/column offset. Must be positive." }
                         }
                     }
                 }
             },
             {
-                name: 'find_base_types',
+                name: 'findBaseTypes',
                 category: 'Project Understanding',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/project_understanding/findBaseTypes',
-                adapter: async (args, impl) => await impl(args.file_path, args.line !== undefined ? Math.max(0, parseInt(args.line, 10) - 1) : undefined, args.character !== undefined ? Math.max(0, parseInt(args.character, 10) - 1) : undefined),
-                getProgressText: args => `Executing tool find_base_types...`,
+                adapter: async (args, impl) => await impl(args.filePath, args.line !== undefined ? Math.max(0, parseInt(args.line, 10) - 1) : undefined, args.character !== undefined ? Math.max(0, parseInt(args.character, 10) - 1) : undefined),
+                getProgressText: args => `Executing tool findBaseTypes...`,
                 schema: {
-                    name: "find_base_types",
-                    description: "Finds base classes, implemented interfaces, or inherited members for a type.",
+                    name: "findBaseTypes",
+                    description: "Finds base classes, implemented interfaces, or inherited members for a type definition.",
                     parameters: {
                         type: "object",
                         properties: {
-                            file_path: { type: "string", description: "The relative or absolute file path containing the symbol." },
-                            line: { type: "integer", description: "The 1-based line number of the symbol declaration." },
-                            character: { type: "integer", description: "The 1-based character/column offset." }
+                            filePath: { type: "string", description: "The relative or absolute file path containing the symbol." },
+                            line: { type: "integer", description: "The 1-based line number of the symbol declaration. Must be positive." },
+                            character: { type: "integer", description: "The 1-based character/column offset. Must be positive." }
                         }
                     }
                 }
             },
             {
-                name: 'find_derived_types',
+                name: 'findDerivedTypes',
                 category: 'Project Understanding',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/project_understanding/findDerivedTypes',
-                adapter: async (args, impl) => await impl(args.file_path, args.line !== undefined ? Math.max(0, parseInt(args.line, 10) - 1) : undefined, args.character !== undefined ? Math.max(0, parseInt(args.character, 10) - 1) : undefined),
-                getProgressText: args => `Executing tool find_derived_types...`,
+                adapter: async (args, impl) => await impl(args.filePath, args.line !== undefined ? Math.max(0, parseInt(args.line, 10) - 1) : undefined, args.character !== undefined ? Math.max(0, parseInt(args.character, 10) - 1) : undefined),
+                getProgressText: args => `Executing tool findDerivedTypes...`,
                 schema: {
-                    name: "find_derived_types",
-                    description: "Finds subclasses, implementers, or derived types of a class/interface.",
+                    name: "findDerivedTypes",
+                    description: "Finds subclasses, implementers, or derived types of a class/interface across the workspace.",
                     parameters: {
                         type: "object",
                         properties: {
-                            file_path: { type: "string", description: "The relative or absolute file path containing the symbol." },
-                            line: { type: "integer", description: "The 1-based line number of the symbol declaration." },
-                            character: { type: "integer", description: "The 1-based character/column offset." }
+                            filePath: { type: "string", description: "The relative or absolute file path containing the symbol." },
+                            line: { type: "integer", description: "The 1-based line number of the symbol declaration. Must be positive." },
+                            character: { type: "integer", description: "The 1-based character/column offset. Must be positive." }
                         }
                     }
                 }
             },
             {
-                name: 'find_callers',
+                name: 'findCallers',
                 category: 'Project Understanding',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/project_understanding/findCallers',
-                adapter: async (args, impl) => await impl(args.file_path, args.line !== undefined ? Math.max(0, parseInt(args.line, 10) - 1) : undefined, args.character !== undefined ? Math.max(0, parseInt(args.character, 10) - 1) : undefined),
-                getProgressText: args => `Executing tool find_callers...`,
+                adapter: async (args, impl) => await impl(args.filePath, args.line !== undefined ? Math.max(0, parseInt(args.line, 10) - 1) : undefined, args.character !== undefined ? Math.max(0, parseInt(args.character, 10) - 1) : undefined),
+                getProgressText: args => `Executing tool findCallers...`,
                 schema: {
-                    name: "find_callers",
-                    description: "Finds methods/functions that call the symbol at a given location.",
+                    name: "findCallers",
+                    description: "Finds methods/functions that directly call the symbol at a given location.",
                     parameters: {
                         type: "object",
                         properties: {
-                            file_path: { type: "string", description: "The relative or absolute file path containing the symbol." },
-                            line: { type: "integer", description: "The 1-based line number of the symbol declaration." },
-                            character: { type: "integer", description: "The 1-based character/column offset." }
+                            filePath: { type: "string", description: "The relative or absolute file path containing the symbol." },
+                            line: { type: "integer", description: "The 1-based line number of the symbol declaration. Must be positive." },
+                            character: { type: "integer", description: "The 1-based character/column offset. Must be positive." }
                         }
                     }
                 }
             },
             {
-                name: 'find_callees',
+                name: 'findCallees',
                 category: 'Project Understanding',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/project_understanding/findCallees',
-                adapter: async (args, impl) => await impl(args.file_path, args.line !== undefined ? Math.max(0, parseInt(args.line, 10) - 1) : undefined, args.character !== undefined ? Math.max(0, parseInt(args.character, 10) - 1) : undefined),
-                getProgressText: args => `Executing tool find_callees...`,
+                adapter: async (args, impl) => await impl(args.filePath, args.line !== undefined ? Math.max(0, parseInt(args.line, 10) - 1) : undefined, args.character !== undefined ? Math.max(0, parseInt(args.character, 10) - 1) : undefined),
+                getProgressText: args => `Executing tool findCallees...`,
                 schema: {
-                    name: "find_callees",
-                    description: "Finds methods/functions called by the symbol at a given location.",
+                    name: "findCallees",
+                    description: "Finds methods/functions called directly by the symbol at a given location.",
                     parameters: {
                         type: "object",
                         properties: {
-                            file_path: { type: "string", description: "The relative or absolute file path containing the symbol." },
-                            line: { type: "integer", description: "The 1-based line number of the symbol declaration." },
-                            character: { type: "integer", description: "The 1-based character/column offset." }
+                            filePath: { type: "string", description: "The relative or absolute file path containing the symbol." },
+                            line: { type: "integer", description: "The 1-based line number of the symbol declaration. Must be positive." },
+                            character: { type: "integer", description: "The 1-based character/column offset. Must be positive." }
                         }
                     }
                 }
             },
             {
-                name: 'search_docs',
+                name: 'searchDocs',
                 category: 'Documentation',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/documentation/searchDocs',
                 adapter: async (args, impl) => await impl(args.query),
-                getProgressText: args => `Executing tool search_docs...`,
+                getProgressText: args => `Executing tool searchDocs...`,
                 schema: {
-                    name: "search_docs",
+                    name: "searchDocs",
                     description: "Searches project documentation, markdown files, local docs, or wiki exports.",
                     parameters: {
                         type: "object",
@@ -714,15 +714,15 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'read_doc',
+                name: 'readDoc',
                 category: 'Documentation',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/documentation/readDoc',
                 adapter: async (args, impl) => await impl(args.docPath),
-                getProgressText: args => `Executing tool read_doc...`,
+                getProgressText: args => `Executing tool readDoc...`,
                 schema: {
-                    name: "read_doc",
+                    name: "readDoc",
                     description: "Reads a specific documentation file or page by path or ID.",
                     parameters: {
                         type: "object",
@@ -734,15 +734,15 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'lookup_api',
+                name: 'lookupApi',
                 category: 'Documentation',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/documentation/lookupApi',
                 adapter: async (args, impl) => await impl(args.apiName),
-                getProgressText: args => `Executing tool lookup_api...`,
+                getProgressText: args => `Executing tool lookupApi...`,
                 schema: {
-                    name: "lookup_api",
+                    name: "lookupApi",
                     description: "Looks up API documentation for a class, method, package, framework, or library.",
                     parameters: {
                         type: "object",
@@ -754,15 +754,15 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'lookup_package',
+                name: 'lookupPackage',
                 category: 'Documentation',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/documentation/lookupPackage',
                 adapter: async (args, impl) => await impl(args.packageName),
-                getProgressText: args => `Executing tool lookup_package...`,
+                getProgressText: args => `Executing tool lookupPackage...`,
                 schema: {
-                    name: "lookup_package",
+                    name: "lookupPackage",
                     description: "Retrieves package metadata, installed version, README, and usage info.",
                     parameters: {
                         type: "object",
@@ -774,15 +774,15 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'generate_doc_comment',
+                name: 'generateDocComment',
                 category: 'Documentation',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/documentation/generateDocComment',
                 adapter: async (args, impl) => await impl(args.signature),
-                getProgressText: args => `Executing tool generate_doc_comment...`,
+                getProgressText: args => `Executing tool generateDocComment...`,
                 schema: {
-                    name: "generate_doc_comment",
+                    name: "generateDocComment",
                     description: "Generates or updates XMLDoc/JSDoc/docstrings for a symbol signature.",
                     parameters: {
                         type: "object",
@@ -794,15 +794,15 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'summarize_file',
+                name: 'summarizeFile',
                 category: 'Documentation',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/documentation/summarizeFile',
                 adapter: async (args, impl) => await impl(args.filePath),
-                getProgressText: args => `Executing tool summarize_file...`,
+                getProgressText: args => `Executing tool summarizeFile...`,
                 schema: {
-                    name: "summarize_file",
+                    name: "summarizeFile",
                     description: "Produces a concise summary of a source file, including purpose, symbols, and dependencies.",
                     parameters: {
                         type: "object",
@@ -814,15 +814,15 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'get_project_dependencies',
+                name: 'getProjectDependencies',
                 category: 'Architecture Tools',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/architecture_tools/getProjectDependencies',
                 adapter: async (args, impl) => await impl(args.projectPath),
-                getProgressText: args => `Executing tool get_project_dependencies...`,
+                getProgressText: args => `Executing tool getProjectDependencies...`,
                 schema: {
-                    name: "get_project_dependencies",
+                    name: "getProjectDependencies",
                     description: "Lists project/package/module dependencies and dependency versions.",
                     parameters: {
                         type: "object",
@@ -834,15 +834,15 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'find_module_dependencies',
+                name: 'findModuleDependencies',
                 category: 'Architecture Tools',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/architecture_tools/findModuleDependencies',
                 adapter: async (args, impl) => await impl(args.filePath),
-                getProgressText: args => `Executing tool find_module_dependencies...`,
+                getProgressText: args => `Executing tool findModuleDependencies...`,
                 schema: {
-                    name: "find_module_dependencies",
+                    name: "findModuleDependencies",
                     description: "Finds import/require dependencies for a given file.",
                     parameters: {
                         type: "object",
@@ -854,15 +854,15 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'find_cycles',
+                name: 'findCycles',
                 category: 'Architecture Tools',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/architecture_tools/findCycles',
                 adapter: async (args, impl) => await impl(args.directory),
-                getProgressText: args => `Executing tool find_cycles...`,
+                getProgressText: args => `Executing tool findCycles...`,
                 schema: {
-                    name: "find_cycles",
+                    name: "findCycles",
                     description: "Detects circular dependencies between modules or files in a directory.",
                     parameters: {
                         type: "object",
@@ -874,15 +874,15 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'analyze_layering',
+                name: 'analyzeLayering',
                 category: 'Architecture Tools',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/architecture_tools/analyzeLayering',
                 adapter: async (args, impl) => await impl(args.directory, args.rulesJsonStr),
-                getProgressText: args => `Executing tool analyze_layering...`,
+                getProgressText: args => `Executing tool analyzeLayering...`,
                 schema: {
-                    name: "analyze_layering",
+                    name: "analyzeLayering",
                     description: "Checks whether code follows configured architectural layers or dependency rules.",
                     parameters: {
                         type: "object",
@@ -895,15 +895,15 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'find_dead_code',
+                name: 'findDeadCode',
                 category: 'Architecture Tools',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/architecture_tools/findDeadCode',
                 adapter: async (args, impl) => await impl(args.directory),
-                getProgressText: args => `Executing tool find_dead_code...`,
+                getProgressText: args => `Executing tool findDeadCode...`,
                 schema: {
-                    name: "find_dead_code",
+                    name: "findDeadCode",
                     description: "Finds unused symbols or unreachable code inside JS/TS files.",
                     parameters: {
                         type: "object",
@@ -915,15 +915,15 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'find_duplicate_code',
+                name: 'findDuplicateCode',
                 category: 'Architecture Tools',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/architecture_tools/findDuplicateCode',
                 adapter: async (args, impl) => await impl(args.directory),
-                getProgressText: args => `Executing tool find_duplicate_code...`,
+                getProgressText: args => `Executing tool findDuplicateCode...`,
                 schema: {
-                    name: "find_duplicate_code",
+                    name: "findDuplicateCode",
                     description: "Finds copy-pasted or highly similar code chunks.",
                     parameters: {
                         type: "object",
@@ -935,15 +935,15 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'search_knowledge',
+                name: 'searchKnowledge',
                 category: 'RAG / Knowledge Base',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/rag_knowledge_base/searchKnowledge',
                 adapter: async (args, impl) => await impl(args.query),
-                getProgressText: args => `Executing tool search_knowledge...`,
+                getProgressText: args => `Executing tool searchKnowledge...`,
                 schema: {
-                    name: "search_knowledge",
+                    name: "searchKnowledge",
                     description: "Searches configured knowledge sources (Confluence, Notion, FAQs).",
                     parameters: {
                         type: "object",
@@ -955,15 +955,15 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'read_knowledge_item',
+                name: 'readKnowledgeItem',
                 category: 'RAG / Knowledge Base',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/rag_knowledge_base/readKnowledgeItem',
                 adapter: async (args, impl) => await impl(args.itemId),
-                getProgressText: args => `Executing tool read_knowledge_item...`,
+                getProgressText: args => `Executing tool readKnowledgeItem...`,
                 schema: {
-                    name: "read_knowledge_item",
+                    name: "readKnowledgeItem",
                     description: "Reads a specific knowledge-base document/page by ID.",
                     parameters: {
                         type: "object",
@@ -975,15 +975,15 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'search_tickets',
+                name: 'searchTickets',
                 category: 'RAG / Knowledge Base',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/rag_knowledge_base/searchTickets',
                 adapter: async (args, impl) => await impl(args.query),
-                getProgressText: args => `Executing tool search_tickets...`,
+                getProgressText: args => `Executing tool searchTickets...`,
                 schema: {
-                    name: "search_tickets",
+                    name: "searchTickets",
                     description: "Searches Jira, DevOps, or Linear tickets and issues.",
                     parameters: {
                         type: "object",
@@ -995,15 +995,15 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'read_ticket',
+                name: 'readTicket',
                 category: 'RAG / Knowledge Base',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/rag_knowledge_base/readTicket',
                 adapter: async (args, impl) => await impl(args.ticketId),
-                getProgressText: args => `Executing tool read_ticket...`,
+                getProgressText: args => `Executing tool readTicket...`,
                 schema: {
-                    name: "read_ticket",
+                    name: "readTicket",
                     description: "Reads details, assignee, status, comments, and links of a specific ticket.",
                     parameters: {
                         type: "object",
@@ -1015,15 +1015,15 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'search_pull_requests',
+                name: 'searchPullRequests',
                 category: 'RAG / Knowledge Base',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/rag_knowledge_base/searchPullRequests',
                 adapter: async (args, impl) => await impl(args.query),
-                getProgressText: args => `Executing tool search_pull_requests...`,
+                getProgressText: args => `Executing tool searchPullRequests...`,
                 schema: {
-                    name: "search_pull_requests",
+                    name: "searchPullRequests",
                     description: "Searches pull requests and merge requests.",
                     parameters: {
                         type: "object",
@@ -1035,15 +1035,15 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'read_pull_request',
+                name: 'readPullRequest',
                 category: 'RAG / Knowledge Base',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/rag_knowledge_base/readPullRequest',
                 adapter: async (args, impl) => await impl(args.pullRequestId),
-                getProgressText: args => `Executing tool read_pull_request...`,
+                getProgressText: args => `Executing tool readPullRequest...`,
                 schema: {
-                    name: "read_pull_request",
+                    name: "readPullRequest",
                     description: "Reads comments, changed files, reviews, and status of a specific pull request.",
                     parameters: {
                         type: "object",
@@ -1055,15 +1055,15 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'search_design_docs',
+                name: 'searchDesignDocs',
                 category: 'RAG / Knowledge Base',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/rag_knowledge_base/searchDesignDocs',
                 adapter: async (args, impl) => await impl(args.query),
-                getProgressText: args => `Executing tool search_design_docs...`,
+                getProgressText: args => `Executing tool searchDesignDocs...`,
                 schema: {
-                    name: "search_design_docs",
+                    name: "searchDesignDocs",
                     description: "Searches architecture, system design, and context documents.",
                     parameters: {
                         type: "object",
@@ -1075,15 +1075,15 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'search_decisions',
+                name: 'searchDecisions',
                 category: 'RAG / Knowledge Base',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/rag_knowledge_base/searchDecisions',
                 adapter: async (args, impl) => await impl(args.query),
-                getProgressText: args => `Executing tool search_decisions...`,
+                getProgressText: args => `Executing tool searchDecisions...`,
                 schema: {
-                    name: "search_decisions",
+                    name: "searchDecisions",
                     description: "Searches Architecture Decision Records (ADRs) and engineering decisions.",
                     parameters: {
                         type: "object",
@@ -1095,35 +1095,36 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'run_command',
+                name: 'runCommand',
                 category: 'Agent Tools',
                 isDestructive: true,
                 isPatchingTool: false,
+                isAdminTool: true,
                 modulePath: './tools/agent_tools/runCommand',
                 adapter: async (args, impl) => await impl(args.command),
-                getProgressText: args => `Executing tool run_command...`,
+                getProgressText: args => `Executing tool runCommand...`,
                 schema: {
-                    name: "run_command",
-                    description: "Runs a command on the user's local terminal system (requires user confirmation).",
+                    name: "runCommand",
+                    description: "Runs a command on the user's local terminal system. CRITICAL: Must be run non-interactively! The command must not expect stdin, wait for any user prompts (like y/n queries), or spawn blocked processes. Do not use 'cd' chaining as shell state does not persist.",
                     parameters: {
                         type: "object",
                         properties: {
-                            command: { type: "string", description: "The shell command to execute." }
+                            command: { type: "string", description: "The shell command to execute non-interactively." }
                         },
                         required: ["command"]
                     }
                 }
             },
             {
-                name: 'create_plan',
+                name: 'createPlan',
                 category: 'Agent Tools',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/agent_tools/createPlan',
                 adapter: async (args, impl) => await impl(args.stepsInput),
-                getProgressText: args => `Executing tool create_plan...`,
+                getProgressText: args => `Executing tool createPlan...`,
                 schema: {
-                    name: "create_plan",
+                    name: "createPlan",
                     description: "Creates a structured multi-step plan for a larger task.",
                     parameters: {
                         type: "object",
@@ -1139,15 +1140,15 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'update_plan',
+                name: 'updatePlan',
                 category: 'Agent Tools',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/agent_tools/updatePlan',
                 adapter: async (args, impl) => await impl(args.stepsInput),
-                getProgressText: args => `Executing tool update_plan...`,
+                getProgressText: args => `Executing tool updatePlan...`,
                 schema: {
-                    name: "update_plan",
+                    name: "updatePlan",
                     description: "Appends new steps to the active task plan.",
                     parameters: {
                         type: "object",
@@ -1163,35 +1164,35 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'mark_plan_step_complete',
+                name: 'markPlanStepComplete',
                 category: 'Agent Tools',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/agent_tools/markPlanStepComplete',
                 adapter: async (args, impl) => await impl(args.stepIndex),
-                getProgressText: args => `Executing tool mark_plan_step_complete...`,
+                getProgressText: args => `Executing tool markPlanStepComplete...`,
                 schema: {
-                    name: "mark_plan_step_complete",
+                    name: "markPlanStepComplete",
                     description: "Marks a specific step in the plan as completed.",
                     parameters: {
                         type: "object",
                         properties: {
-                            stepIndex: { type: "integer", description: "The 1-based index of the step to complete." }
+                            stepIndex: { type: "integer", description: "The 1-based index of the step to complete. Must be a positive integer." }
                         },
                         required: ["stepIndex"]
                     }
                 }
             },
             {
-                name: 'create_task',
+                name: 'createTask',
                 category: 'Agent Tools',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/agent_tools/createTask',
                 adapter: async (args, impl) => await impl(args.description),
-                getProgressText: args => `Executing tool create_task...`,
+                getProgressText: args => `Executing tool createTask...`,
                 schema: {
-                    name: "create_task",
+                    name: "createTask",
                     description: "Creates a subtask for tracking agent work.",
                     parameters: {
                         type: "object",
@@ -1203,35 +1204,35 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'complete_task',
+                name: 'completeTask',
                 category: 'Agent Tools',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/agent_tools/completeTask',
                 adapter: async (args, impl) => await impl(args.taskId),
-                getProgressText: args => `Executing tool complete_task...`,
+                getProgressText: args => `Executing tool completeTask...`,
                 schema: {
-                    name: "complete_task",
+                    name: "completeTask",
                     description: "Marks a tracking subtask complete.",
                     parameters: {
                         type: "object",
                         properties: {
-                            taskId: { type: "integer", description: "The ID of the task to complete." }
+                            taskId: { type: "integer", description: "The 1-based ID of the task to complete. Must be a positive integer." }
                         },
                         required: ["taskId"]
                     }
                 }
             },
             {
-                name: 'request_user_confirmation',
+                name: 'requestUserConfirmation',
                 category: 'Agent Tools',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/agent_tools/requestUserConfirmation',
                 adapter: async (args, impl) => await impl(args.message),
-                getProgressText: args => `Executing tool request_user_confirmation...`,
+                getProgressText: args => `Executing tool requestUserConfirmation...`,
                 schema: {
-                    name: "request_user_confirmation",
+                    name: "requestUserConfirmation",
                     description: "Pauses execution and asks the user to approve a sensitive operation.",
                     parameters: {
                         type: "object",
@@ -1243,15 +1244,15 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'summarize_progress',
+                name: 'summarizeProgress',
                 category: 'Agent Tools',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/agent_tools/summarizeProgress',
                 adapter: async (args, impl) => await impl(),
-                getProgressText: args => `Executing tool summarize_progress...`,
+                getProgressText: args => `Executing tool summarizeProgress...`,
                 schema: {
-                    name: "summarize_progress",
+                    name: "summarizeProgress",
                     description: "Summarizes what has been inspected, changed, learned, and what remains.",
                     parameters: {
                         type: "object",
@@ -1260,15 +1261,15 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'save_session_memory',
+                name: 'saveSessionMemory',
                 category: 'Agent Tools',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/agent_tools/saveSessionMemory',
                 adapter: async (args, impl) => await impl(args.memoryString),
-                getProgressText: args => `Executing tool save_session_memory...`,
+                getProgressText: args => `Executing tool saveSessionMemory...`,
                 schema: {
-                    name: "save_session_memory",
+                    name: "saveSessionMemory",
                     description: "Saves a compact summary of the current task session to local memory.",
                     parameters: {
                         type: "object",
@@ -1280,19 +1281,206 @@ class ToolDefinitionProvider {
                 }
             },
             {
-                name: 'restore_session_memory',
+                name: 'restoreSessionMemory',
                 category: 'Agent Tools',
                 isDestructive: false,
                 isPatchingTool: false,
                 modulePath: './tools/agent_tools/restoreSessionMemory',
                 adapter: async (args, impl) => await impl(),
-                getProgressText: args => `Executing tool restore_session_memory...`,
+                getProgressText: args => `Executing tool restoreSessionMemory...`,
                 schema: {
-                    name: "restore_session_memory",
+                    name: "restoreSessionMemory",
                     description: "Restores previous session task summary memory if present.",
                     parameters: {
                         type: "object",
                         properties: {}
+                    }
+                }
+            },
+            {
+                name: 'buildProject',
+                category: 'Build System',
+                isDestructive: true,
+                isPatchingTool: false,
+                modulePath: './tools/build_system/buildProject',
+                adapter: async (args, impl) => await impl(args.projectPath),
+                getProgressText: args => `Building project at "${args.projectPath || ''}"...`,
+                schema: {
+                    name: "buildProject",
+                    description: "Compiles or builds the specific project or file path. It dynamically detects if the project is .NET (C#), NPM (Javascript/Typescript), Java (Maven/Gradle), C/C++ (CMake/Makefile/GCC), or Python (py_compile, pip/poetry/setup.py), and invokes the appropriate compiler or build manager.",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            projectPath: { 
+                                type: "string", 
+                                description: "The relative or absolute file or directory path of the project to build. If not specified, defaults to the workspace root directory." 
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                name: 'buildSolution',
+                category: 'Build System',
+                isDestructive: true,
+                isPatchingTool: false,
+                modulePath: './tools/build_system/buildSolution',
+                adapter: async (args, impl) => await impl(args.solutionPath),
+                getProgressText: args => `Building solution at "${args.solutionPath || ''}"...`,
+                schema: {
+                    name: "buildSolution",
+                    description: "Builds the entire solution or default compile target for the project workspace. Automatically detects the project type (.NET, NPM, Java, C/C++, or Python) and triggers the correct build tool (e.g. dotnet build, npm run build, mvn package, cmake/make, or python compile).",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            solutionPath: { 
+                                type: "string", 
+                                description: "The relative or absolute file or directory path of the solution/workspace. Defaults to the workspace root directory if not provided." 
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                name: 'getCodeCoverage',
+                category: 'Build System',
+                isDestructive: true,
+                isPatchingTool: false,
+                modulePath: './tools/build_system/getCodeCoverage',
+                adapter: async (args, impl) => await impl(args.projectPath),
+                getProgressText: args => `Running coverage collection on "${args.projectPath || ''}"...`,
+                schema: {
+                    name: "getCodeCoverage",
+                    description: "Gathers and generates test code coverage reports for the project at the specified path. Automatically runs the appropriate code coverage tool depending on project type (e.g., dotnet test --collect, npm test coverage, mvn jacoco:report, GCC gcov, or pytest-cov).",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            projectPath: { 
+                                type: "string", 
+                                description: "The relative or absolute path to the project directory or file. Defaults to the workspace root if not provided." 
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                name: 'listTests',
+                category: 'Build System',
+                isDestructive: true,
+                isPatchingTool: false,
+                modulePath: './tools/build_system/listTests',
+                adapter: async (args, impl) => await impl(args.projectPath),
+                getProgressText: args => `Listing unit tests at "${args.projectPath || ''}"...`,
+                schema: {
+                    name: "listTests",
+                    description: "Lists and discovers all unit tests in the specified project path without executing them. Uses dotnet test --list-tests, parses NPM Mocha/Jest/Vitest test suites, scans Java JUnit annotations, parses C/C++ GTest/Catch2 cases, or scans Python pytest/unittest files.",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            projectPath: { 
+                                type: "string", 
+                                description: "The relative or absolute path of the project folder. Defaults to the workspace root if omitted." 
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                name: 'runTest',
+                category: 'Build System',
+                isDestructive: true,
+                isPatchingTool: false,
+                modulePath: './tools/build_system/runTest',
+                adapter: async (args, impl) => await impl(args.projectPath, args.testName),
+                getProgressText: args => `Running test "${args.testName || ''}"...`,
+                schema: {
+                    name: "runTest",
+                    description: "Executes a single, specific unit test by name. Automatically identifies project type (.NET, NPM, Java, C/C++, or Python) and passes test filters to the correct test runner (e.g., dotnet filter, npm mocha/jest -g, mvn -Dtest, C/C++ gtest, or pytest/unittest -k).",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            projectPath: { 
+                                type: "string", 
+                                description: "Optional relative or absolute path to the project directory/file. Defaults to workspace root if not provided." 
+                            },
+                            testName: { 
+                                type: "string", 
+                                description: "The name or selector of the specific test to execute." 
+                            }
+                        },
+                        required: ["testName"]
+                    }
+                }
+            },
+            {
+                name: 'runTests',
+                category: 'Build System',
+                isDestructive: true,
+                isPatchingTool: false,
+                modulePath: './tools/build_system/runTests',
+                adapter: async (args, impl) => await impl(args.projectPath),
+                getProgressText: args => `Running all unit tests at "${args.projectPath || ''}"...`,
+                schema: {
+                    name: "runTests",
+                    description: "Runs all unit tests in the specified project or workspace. Triggers dotnet test, npm test, mvn test, ctest, make test, or pytest depending on the automatically detected project type.",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            projectPath: { 
+                                type: "string", 
+                                description: "Optional relative or absolute directory path to the project. Defaults to workspace root if not provided." 
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                name: 'compileFile',
+                category: 'Build System',
+                isDestructive: true,
+                isPatchingTool: false,
+                modulePath: './tools/build_system/compileFile',
+                adapter: async (args, impl) => await impl(args.filePath),
+                getProgressText: args => `Compiling file "${args.filePath || ''}"...`,
+                schema: {
+                    name: "compileFile",
+                    description: "Compiles, syntax-checks, or dry-runs compilation for a single source file. Supports C# (dotnet build project context or csc), Java (javac), Javascript/Typescript (node --check or tsc --noEmit), C/C++ (gcc/g++ syntax check), and Python (py_compile). Use this to verify a single file's compile-time correctness.",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            filePath: { 
+                                type: "string", 
+                                description: "The relative or absolute path of the file to compile/syntax-check." 
+                            }
+                        },
+                        required: ["filePath"]
+                    }
+                }
+            },
+            {
+                name: 'runFile',
+                category: 'Build System',
+                isDestructive: true,
+                isPatchingTool: false,
+                modulePath: './tools/build_system/runFile',
+                adapter: async (args, impl) => await impl(args.filePath, args.arguments),
+                getProgressText: args => `Running file "${args.filePath || ''}"...`,
+                schema: {
+                    name: "runFile",
+                    description: "Executes a single source file, script, or compiled executable with optional command line arguments. Automatically handles C# (compilation + execution or dotnet run), Java (compilation + execution or direct java run), Javascript/Typescript (node or ts-node), C/C++ (compiles to a temp file and runs), and Python (python script). Use this to validate run-time logic or execute test examples inside a file.",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            filePath: { 
+                                type: "string", 
+                                description: "The relative or absolute path of the file/script to run." 
+                            },
+                            arguments: {
+                                type: "string",
+                                description: "Optional command line arguments to pass to the script or program during execution."
+                            }
+                        },
+                        required: ["filePath"]
                     }
                 }
             }

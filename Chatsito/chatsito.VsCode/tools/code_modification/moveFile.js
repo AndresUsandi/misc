@@ -1,12 +1,24 @@
 const vscode = require('vscode');
 const path = require('path');
+const { validateRequiredParams } = require('./codeUtils');
 
-async function moveFile(sourcePath, destPath) {
-    if (!sourcePath || !destPath) return "Error: Missing required parameters.";
+async function moveFile(args) {
+    let sourcePath, destPath;
+    if (args && typeof args === 'object' && !Array.isArray(args)) {
+        ({ sourcePath, destPath } = args);
+    } else {
+        sourcePath = arguments[0];
+        destPath = arguments[1];
+    }
+
+    const normalizedArgs = { sourcePath, destPath };
+    const validationErr = validateRequiredParams("moveFile", normalizedArgs);
+    if (validationErr) {
+        return validationErr;
+    }
 
     try {
         let sourceUri, destUri;
-        
         const PathResolver = require('../../PathResolver');
 
         try {

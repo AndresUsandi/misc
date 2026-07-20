@@ -18,8 +18,8 @@ describe('formatFile Tool', function () {
         await vscode.window.showTextDocument(doc);
         await new Promise(resolve => setTimeout(resolve, 3000));
         
-        const args = { file_path: fixturePath };
-        const output = await PatchManager.executeTool('format_file', args);
+        const args = { filePath: fixturePath };
+        const output = await PatchManager.executeTool('formatFile', args);
         
         assert.ok(typeof output === 'string' && (output.includes('Successfully formatted') || output.includes('No formatting changes')), `Output: ${output}`);
         
@@ -27,7 +27,7 @@ describe('formatFile Tool', function () {
     });
 
     it('should return error for missing parameters', async () => {
-        const output = await PatchManager.executeTool('format_file', {});
+        const output = await PatchManager.executeTool('formatFile', {});
         assert.ok(output.includes('Missing required parameters'), `Output: ${output}`);
     });
 });

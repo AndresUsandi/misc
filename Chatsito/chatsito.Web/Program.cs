@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using chatsito.Core;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -31,6 +32,10 @@ builder.Services.AddCors(options =>
               .AllowCredentials(); // supports credentials: 'include'
     });
 });
+
+// Configure Data Protection to persist keys so session cookies survive app restarts
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new System.IO.DirectoryInfo(System.IO.Path.Combine(builder.Environment.ContentRootPath, ".keys")));
 
 // Add session support
 builder.Services.AddDistributedMemoryCache();

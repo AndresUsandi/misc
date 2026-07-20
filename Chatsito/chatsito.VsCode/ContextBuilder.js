@@ -175,8 +175,13 @@ async function getInitialCalleeContext(filePath, lineNumber, callStackLevel = 2)
             return "";
         }
 
-        const position = enclosingSym.selectionRange.start;
-        const callHierarchyItems = await vscode.commands.executeCommand('vscode.executePrepareCallHierarchyProvider', uri, position) || [];
+        let callHierarchyItems = [];
+        try {
+            callHierarchyItems = await vscode.commands.executeCommand('vscode.executePrepareCallHierarchy', uri, enclosingSym.selectionRange.start) || [];
+        } catch (e) {
+            // Call hierarchy provider might not be registered or active yet
+            callHierarchyItems = [];
+        }
 
         if (callHierarchyItems.length === 0) {
             return "";
@@ -385,6 +390,16 @@ async function getInitialFilePathContext(filePath, callStackLevel = 2) {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     let resultText = "";
 
+    try {
+        if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+            const content = fs.readFileSync(filePath, 'utf8');
+            const eol = content.includes('\r\n') ? 'CRLF (\\r\\n)' : 'LF (\\n)';
+            resultText += `File: ${vscode.workspace.asRelativePath(vscode.Uri.file(filePath))} [Line Endings: ${eol}]\n\n`;
+        }
+    } catch (e) {
+        console.error("Error reading active file format in getInitialFilePathContext:", e);
+    }
+
     let currentLevelPaths = [filePath];
     visited.add(path.normalize(filePath));
 
@@ -410,7 +425,8 @@ async function getInitialFilePathContext(filePath, callStackLevel = 2) {
                             const relativePath = vscode.workspace.asRelativePath(uri);
                             try {
                                 const fileContent = fs.readFileSync(fsPath, 'utf8');
-                                levelOutputs.push(`File: ${relativePath}\n${fileContent}`);
+                                const eol = fileContent.includes('\r\n') ? 'CRLF (\\r\\n)' : 'LF (\\n)';
+                                levelOutputs.push(`File: ${relativePath} [Line Endings: ${eol}]\n${fileContent}`);
                             } catch (e) {
                                 levelOutputs.push(`File: ${relativePath} (Error reading file: ${e.message})`);
                             }
@@ -760,12 +776,24 @@ async function getInitialWorkspaceContext(filePath, callStackLevel = 2) {
 }
 
 async function getInitialPromptContext(filePath, lineNumber, callStackLevel = 2) {
+    if (!filePath) {
+        return "Failed to open or resolve context for: empty file path.";
+    }
     let absolutePath = filePath;
     if (!path.isAbsolute(filePath)) {
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
         if (workspaceFolder) {
             absolutePath = path.join(workspaceFolder.uri.fsPath, filePath);
         }
+    }
+
+    // Check if the file actually exists on disk
+    try {
+        if (!fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isFile()) {
+            return "";
+        }
+    } catch (e) {
+        return "";
     }
 
     let callerContext = "";

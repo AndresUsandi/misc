@@ -17,6 +17,8 @@
   "activationEvents": [
     "onCommand:chatsito.openChat",
     "onCommand:chatsito.evaluateHumanEval",
+    "onCommand:chatsito.evaluateLiveCodeBench",
+    "onCommand:chatsito.evaluateSWEBench",
     "onView:chatsito.sidebarView"
   ],
   "main": "./extension.js",
@@ -29,6 +31,14 @@
       {
         "command": "chatsito.evaluateHumanEval",
         "title": "Chatsito: Evaluate with HumanEval"
+      },
+      {
+        "command": "chatsito.evaluateLiveCodeBench",
+        "title": "Chatsito: Evaluate with LiveCodeBench"
+      },
+      {
+        "command": "chatsito.evaluateSWEBench",
+        "title": "Chatsito: Evaluate with SWE-Bench"
       }
     ],
     "viewsContainers": {
@@ -48,6 +58,16 @@
           "type": "webview"
         }
       ]
+    },
+    "configuration": {
+      "title": "Chatsito",
+      "properties": {
+        "chatsito.logThinking": {
+          "type": "boolean",
+          "default": true,
+          "description": "If enabled, Chatsito will request and log thinking/reasoning blocks from local reasoning models."
+        }
+      }
     }
   },
   "scripts": {

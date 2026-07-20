@@ -17,10 +17,19 @@ async function findReferences(filePath, line, character) {
             }
         }
 
-        const position = new vscode.Position(line, character);
-        await vscode.workspace.openTextDocument(uri);
+        let position = new vscode.Position(line, character);
+        const doc = await vscode.workspace.openTextDocument(uri);
         
-        const references = await vscode.commands.executeCommand('vscode.executeReferenceProvider', uri, position) || [];
+        let references = await vscode.commands.executeCommand('vscode.executeReferenceProvider', uri, position) || [];
+        
+        if (references.length === 0 && line + 1 < doc.lineCount) {
+            const backupPosition = new vscode.Position(line + 1, character);
+            const backupRefs = await vscode.commands.executeCommand('vscode.executeReferenceProvider', uri, backupPosition);
+            if (backupRefs && backupRefs.length > 0) {
+                references = backupRefs;
+                position = backupPosition;
+            }
+        }
         
         if (references.length === 0) {
             return `No references found for symbol at ${vscode.workspace.asRelativePath(uri)}:${line + 1}:${character + 1}`;

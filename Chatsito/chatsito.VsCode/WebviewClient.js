@@ -17,9 +17,6 @@ class WebviewClient {
             }
 
             let logMsg = `[Chatsito Client Host] Received command: '${message.command}'`;
-            if (message.arguments && Object.keys(message.arguments).length > 0) {
-                logMsg += ` with args: ${logger.formatJson(message.arguments)}`;
-            }
             logger.log(logMsg);
 
             try {
@@ -88,8 +85,21 @@ class WebviewClient {
                     case 'change_mode': {
                         const mode = message.arguments?.mode;
                         if (mode) {
-                            this.sessionManager.selectedMode = mode;
-                            this.sendStateUpdate();
+                            if (mode === 'admin') {
+                                vscode.window.showWarningMessage(
+                                    "Warning: Admin-Mode is unrestrained and will execute anything the LLM asks for, even if it is harmful to the system. Are you sure you want to enable this mode?",
+                                    { modal: true },
+                                    "Accept"
+                                ).then(selection => {
+                                    if (selection === "Accept") {
+                                        this.sessionManager.selectedMode = mode;
+                                    }
+                                    this.sendStateUpdate();
+                                });
+                            } else {
+                                this.sessionManager.selectedMode = mode;
+                                this.sendStateUpdate();
+                            }
                         }
                         break;
                     }

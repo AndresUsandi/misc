@@ -55,7 +55,8 @@ namespace chatsito.Core
                     Think = thinkVal,
                     Options = new OllamaOptions
                     {
-                        NumCtx = chat.UpdateAndGetContextSize()
+                        NumCtx = chat.UpdateAndGetContextSize(),
+                        NumPredict = Configuration.TokenMax
                     },
                     Tools = tools,
                     KeepAlive = $"{Configuration.DefaultKeepAliveHours}h"
@@ -92,6 +93,11 @@ namespace chatsito.Core
             var ollamaResponse = JsonSerializer.Deserialize<OllamaResponse>(jsonResponse, _serializerOptions);
             finalResponse.Dispose();
 
+            if (ollamaResponse?.Message != null)
+            {
+                ollamaResponse.Message.DoneReason = ollamaResponse.DoneReason;
+            }
+
             return ollamaResponse?.Message;
         }
 
@@ -111,7 +117,8 @@ namespace chatsito.Core
                     Think = thinkVal,
                     Options = new OllamaOptions
                     {
-                        NumCtx = chat.UpdateAndGetContextSize()
+                        NumCtx = chat.UpdateAndGetContextSize(),
+                        NumPredict = Configuration.TokenMax
                     },
                     Tools = tools,
                     KeepAlive = $"{Configuration.DefaultKeepAliveHours}h"

@@ -1,8 +1,22 @@
 const vscode = require('vscode');
 const path = require('path');
+const { validateRequiredParams } = require('./codeUtils');
 
-async function moveType(filePath, typeName, destFilePath) {
-    if (!filePath || !typeName || !destFilePath) return "Error: Missing required parameters.";
+async function moveType(args) {
+    let filePath, typeName, destFilePath;
+    if (args && typeof args === 'object' && !Array.isArray(args)) {
+        ({ filePath, typeName, destFilePath } = args);
+    } else {
+        filePath = arguments[0];
+        typeName = arguments[1];
+        destFilePath = arguments[2];
+    }
+
+    const normalizedArgs = { filePath, typeName, destFilePath };
+    const validationErr = validateRequiredParams("moveType", normalizedArgs);
+    if (validationErr) {
+        return validationErr;
+    }
 
     try {
         const PathResolver = require('../../PathResolver');
@@ -24,7 +38,6 @@ async function moveType(filePath, typeName, destFilePath) {
                 successMessage: `Successfully applied move refactoring for type '${typeName}'.`
             };
         } else {
-            // Note: Many languages don't support automated Move Type via Code Actions headless
             return `No automated move refactoring available for type '${typeName}'. Please move it manually.`;
         }
     } catch (e) {

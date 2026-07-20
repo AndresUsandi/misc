@@ -14,8 +14,6 @@ describe('readFile Tool', function () {
         
         const output = await readFile(fixturePath);
         
-        assert.ok(output, 'Output should not be null');
-        assert.ok(output.includes('=== File Content:'), 'Should include header');
         assert.ok(output.includes('TargetMethod'), 'Should include file content');
     });
 

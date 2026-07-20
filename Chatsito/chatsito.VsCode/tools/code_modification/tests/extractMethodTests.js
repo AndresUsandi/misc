@@ -19,14 +19,14 @@ describe('extractMethod Tool', function () {
         await new Promise(resolve => setTimeout(resolve, 3000));
         
         const args = {
-            file_path: fixturePath,
-            start_line: 2,
-            start_char: 5,
-            end_line: 2,
-            end_char: 26,
-            new_method_name: 'myNewMethod'
+            filePath: fixturePath,
+            startLine: 2,
+            startChar: 5,
+            endLine: 2,
+            endChar: 26,
+            newMethodName: 'myNewMethod'
         };
-        const output = await PatchManager.executeTool('extract_method', args);
+        const output = await PatchManager.executeTool('extractMethod', args);
         
         assert.ok(output, 'Output should not be null');
         assert.ok(typeof output === 'string' && (output.includes('Successfully applied') || output.includes('Executed extract method') || output.includes('No automated extract')), `Output: ${output}`);
@@ -35,7 +35,7 @@ describe('extractMethod Tool', function () {
     });
 
     it('should return error for missing parameters', async () => {
-        const output = await PatchManager.executeTool('extract_method', {});
+        const output = await PatchManager.executeTool('extractMethod', {});
         assert.ok(output.includes('Missing required parameters'), `Output: ${output}`);
     });
 });

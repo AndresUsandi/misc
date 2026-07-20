@@ -27,12 +27,6 @@ namespace chatsito.Web
                     var chat = new Chat();
                     chat.LoadMessages(request.Messages);
 
-                    // Restore context state if passed by client, otherwise defaults to configuration minimum
-                    if (request.ContextTokenSize > 0)
-                    {
-                        chat.ContextTokenSize = request.ContextTokenSize;
-                    }
-
                     string targetModel = request.Model;
                     if (string.IsNullOrWhiteSpace(targetModel))
                     {
@@ -57,7 +51,9 @@ namespace chatsito.Web
                         {
                             success = true,
                             message = assistantMessage,
-                            contextTokenSize = chat.ContextTokenSize
+                            doneReason = assistantMessage.DoneReason,
+                            contextTokenSize = chat.ContextTokenSize,
+                            predictTokenSize = Configuration.TokenMax
                         });
                     }
                     else
@@ -86,7 +82,9 @@ namespace chatsito.Web
                 {
                     defaultModel = defaultModel,
                     defaultOllamaUrl = Configuration.DefaultOllamaUrl,
-                    timeoutMins = Configuration.TimeoutMins
+                    timeoutMins = Configuration.TimeoutMins,
+                    maxToolIterations = Configuration.MaxToolIterations,
+                    tokenMax = Configuration.TokenMax
                 });
             });
 
@@ -103,6 +101,18 @@ namespace chatsito.Web
                     return Results.Json(new { error = ex.Message }, statusCode: 500);
                 }
             });
+
+            // Expose utility for estimating token count of raw text strings
+            app.MapPost("/api/estimate-tokens", ([FromBody] TokenEstimateRequest request) =>
+            {
+                if (request == null || request.Text == null)
+                {
+                    return Results.BadRequest(new { error = "Invalid request payload" });
+                }
+
+                int estimatedTokens = Utils.EstimateTokenCount(request.Text);
+                return Results.Ok(new { count = estimatedTokens });
+            });
         }
     }
 
@@ -110,7 +120,11 @@ namespace chatsito.Web
     {
         public string Model { get; set; } = string.Empty;
         public List<ChatMessage> Messages { get; set; } = new List<ChatMessage>();
-        public int ContextTokenSize { get; set; }
         public List<object>? Tools { get; set; }
+    }
+
+    public class TokenEstimateRequest
+    {
+        public string Text { get; set; } = string.Empty;
     }
 }

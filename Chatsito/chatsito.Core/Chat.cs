@@ -10,12 +10,32 @@ namespace chatsito.Core
 
         public IReadOnlyList<ChatMessage> Messages => _messages.AsReadOnly();
 
-        public int ContextTokenSize { get; set; } = Configuration.TokenMin;
+        private static int _contextTokenSize = Configuration.TokenMin;
+        private static readonly object _lock = new object();
+
+        public int ContextTokenSize
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    return _contextTokenSize;
+                }
+            }
+            set
+            {
+                lock (_lock)
+                {
+                    _contextTokenSize = value;
+                }
+            }
+        }
 
         public void AddMessage(ChatMessage message)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
-            
+
+
             int tokenCount = Utils.EstimateTokenCount(message.Content ?? string.Empty);
             if (message.ToolCalls != null)
             {
@@ -38,7 +58,8 @@ namespace chatsito.Core
         public void InsertMessage(int index, ChatMessage message)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
-            
+
+
             int tokenCount = Utils.EstimateTokenCount(message.Content ?? string.Empty);
             if (message.ToolCalls != null)
             {
@@ -76,16 +97,19 @@ namespace chatsito.Core
 
         public int UpdateAndGetContextSize()
         {
-            if (ContextTokenSize <= 0)
+            lock (_lock)
             {
-                ContextTokenSize = Configuration.TokenMin;
+                if (_contextTokenSize <= 0)
+                {
+                    _contextTokenSize = Configuration.TokenMin;
+                }
+                int calculatedSize = CalculateContextSize();
+                while (calculatedSize > _contextTokenSize)
+                {
+                    _contextTokenSize *= 2;
+                }
+                return _contextTokenSize;
             }
-            int calculatedSize = CalculateContextSize();
-            while (calculatedSize > ContextTokenSize)
-            {
-                ContextTokenSize *= 2;
-            }
-            return ContextTokenSize;
         }
 
         public void RemoveLastMessage()
@@ -99,7 +123,10 @@ namespace chatsito.Core
         public void Clear()
         {
             _messages.Clear();
-            ContextTokenSize = Configuration.TokenMin;
+            lock (_lock)
+            {
+                _contextTokenSize = Configuration.TokenMin;
+            }
         }
 
         // Helper to initialize from an existing collection (useful for deserialization in session)

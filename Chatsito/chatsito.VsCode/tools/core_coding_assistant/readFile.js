@@ -26,7 +26,7 @@ async function readFile(filePath) {
         }
 
         const content = fs.readFileSync(absolutePath, 'utf8');
-        return `=== File Content: ${vscode.workspace.asRelativePath(absolutePath)} ===\n\n${content}`;
+        return content;
     } catch (error) {
         return `Error reading file: ${error.message}`;
     }

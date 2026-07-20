@@ -17,10 +17,10 @@ describe('moveFile Tool', function () {
         if (fs.existsSync(destPath)) fs.unlinkSync(destPath);
         
         const args = {
-            source_path: sourcePath,
-            dest_path: destPath
+            sourcePath: sourcePath,
+            destPath: destPath
         };
-        const output = await PatchManager.executeTool('move_file', args);
+        const output = await PatchManager.executeTool('moveFile', args);
         
         assert.ok(typeof output === 'string' && output.includes('Successfully moved/renamed'), `Should return success. Output: ${output}`);
         assert.ok(fs.existsSync(destPath), 'Destination file should exist');
@@ -30,7 +30,7 @@ describe('moveFile Tool', function () {
     });
 
     it('should return error for missing parameters', async () => {
-        const output = await PatchManager.executeTool('move_file', {});
+        const output = await PatchManager.executeTool('moveFile', {});
         assert.ok(output.includes('Missing required parameters'), `Output: ${output}`);
     });
 });

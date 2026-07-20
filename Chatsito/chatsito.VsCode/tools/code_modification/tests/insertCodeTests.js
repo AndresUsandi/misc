@@ -17,12 +17,12 @@ describe('insertCode Tool', function () {
         fs.writeFileSync(fixturePath, 'function test() {\n}\n', 'utf8');
         
         const args = {
-            file_path: fixturePath,
+            filePath: fixturePath,
             line: 1,
             character: 18,
-            text_to_insert: '\n    console.log("inserted!");'
+            textToInsert: '\n    console.log("inserted!");'
         };
-        const output = await PatchManager.executeTool('insert_code', args);
+        const output = await PatchManager.executeTool('insertCode', args);
         
         assert.ok(typeof output === 'string' && output.includes('Successfully inserted'), `Should return success. Output: ${output}`);
         
@@ -35,7 +35,7 @@ describe('insertCode Tool', function () {
     });
 
     it('should return error for missing parameters', async () => {
-        const output = await PatchManager.executeTool('insert_code', {});
+        const output = await PatchManager.executeTool('insertCode', {});
         assert.ok(output.includes('Missing required parameters'), `Output: ${output}`);
     });
 });

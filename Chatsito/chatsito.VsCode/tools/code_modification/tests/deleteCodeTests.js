@@ -15,13 +15,14 @@ describe('deleteCode Tool', function () {
         fs.writeFileSync(fixturePath, 'function test() {\n    return old;\n}\n', 'utf8');
         
         const args = {
-            file_path: fixturePath,
-            start_line: 2,
-            start_char: 11,
-            end_line: 2,
-            end_char: 15
+            filePath: fixturePath,
+            startLine: 2,
+            startChar: 11,
+            endLine: 2,
+            endChar: 15,
+            expectedOriginalText: ' old'
         };
-        const output = await PatchManager.executeTool('delete_code', args);
+        const output = await PatchManager.executeTool('deleteCode', args);
         
         assert.ok(typeof output === 'string' && output.includes('Successfully deleted'), `Should return success. Output: ${output}`);
         
@@ -32,7 +33,7 @@ describe('deleteCode Tool', function () {
     });
 
     it('should return error for missing parameters', async () => {
-        const output = await PatchManager.executeTool('delete_code', {});
+        const output = await PatchManager.executeTool('deleteCode', {});
         assert.ok(output.includes('Missing required parameters'), `Output: ${output}`);
     });
 });

@@ -34,6 +34,10 @@ namespace chatsito.Core
     {
         [JsonPropertyName("num_ctx")]
         public int NumCtx { get; set; }
+
+        [JsonPropertyName("num_predict")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public int? NumPredict { get; set; }
     }
 
     public class OllamaResponse

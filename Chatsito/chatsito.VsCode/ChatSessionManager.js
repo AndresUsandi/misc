@@ -2,6 +2,7 @@ const vscode = require('vscode');
 const logger = require('./logger');
 const ChatsitoApiClient = require('./ChatsitoApiClient');
 const ToolManager = require('./ToolManager');
+const ResponseRouter = require('./ResponseRouter');
 
 const getInitialPromptContext = require('./ContextBuilder');
 
@@ -11,7 +12,9 @@ class ChatSessionManager {
         this.conversationHistory = [];
         this.currentRequest = null;
         this.activeWorkspace = vscode.workspace.workspaceFolders?.[0]?.uri?.fsPath || '';
-        this.selectedMode = 'hybrid';
+        this._selectedMode = (this.context && this.context.globalState)
+            ? (this.context.globalState.get('chatsito.selectedMode') || 'hybrid')
+            : 'hybrid';
         this.pendingToolResults = {};
         this.pendingApprovals = [];
         this.previousPrompts = [];
@@ -26,8 +29,25 @@ class ChatSessionManager {
 
     async initializeApiClient() {
         await this.chatsitoApiClient.initialize();
+        if (this.context && this.context.globalState) {
+            const savedModel = this.context.globalState.get('chatsito.activeModel');
+            if (savedModel && this.availableModels.includes(savedModel)) {
+                this.activeModel = savedModel;
+            }
+        }
         if (this.webviewClient) {
             this.webviewClient.sendStateUpdate();
+        }
+    }
+
+    get selectedMode() {
+        return this._selectedMode;
+    }
+
+    set selectedMode(value) {
+        this._selectedMode = value;
+        if (this.context && this.context.globalState) {
+            this.context.globalState.update('chatsito.selectedMode', value);
         }
     }
 
@@ -37,6 +57,9 @@ class ChatSessionManager {
 
     set activeModel(value) {
         this.chatsitoApiClient.activeModel = value;
+        if (this.context && this.context.globalState) {
+            this.context.globalState.update('chatsito.activeModel', value);
+        }
     }
 
     get availableModels() {
@@ -105,7 +128,7 @@ class ChatSessionManager {
         this.conversationHistory = [];
         this.contextTokenSize = 16384;
         this.activeModel = options.activeModel || this.activeModel || '';
-        this.selectedMode = options.selectedMode || 'hybrid';
+        this.selectedMode = options.selectedMode || this.selectedMode || 'hybrid';
         this.pendingToolResults = {};
         this.pendingApprovals = [];
     }
@@ -235,7 +258,7 @@ Approval contract:
 
             let isThinking = true;
             let iterationCount = 0;
-            const MAX_ITERATIONS = 20;
+            const MAX_ITERATIONS = this.chatsitoApiClient.maxToolIterations || 20;
             let previousToolCallsStr = '';
             let duplicateCount = 0;
 
@@ -253,22 +276,38 @@ Approval contract:
 
                 webviewClient.sendProgress('Chatsito is thinking...');
 
-                logger.log(`[ChatSessionManager] Posting HTTP request to Chatsito Web API. Messages count: ${this.conversationHistory.length}. Outgoing request (last message): ${logger.formatJson(this.conversationHistory[this.conversationHistory.length - 1])}`);
+                logger.log(`[ChatSessionManager] Posting HTTP request to Chatsito Web API. Messages count: ${this.conversationHistory.length}.`);
 
                 const result = await this.chatsitoApiClient.sendChat(
                     this.conversationHistory,
-                    this.contextTokenSize,
                     this.toolManager.getToolsDefinition()
                 );
 
                 if (result.success && result.message) {
-                    logger.log(`[ChatSessionManager] Received message from model. Tool calls count: ${result.message.tool_calls ? result.message.tool_calls.length : 0}. Message Content: ${result.message.content ? logger.formatJson(result.message.content) : '<No text content>'}`);
-                    if (result.message.tool_calls && result.message.tool_calls.length > 0) {
-                        logger.log(`[ChatSessionManager] Tool Calls Payload: ${logger.formatJson(result.message.tool_calls)}`);
-                    }
+                    let msgLog = `[ChatSessionManager] Received message from model.`;
+                    logger.log(msgLog);
                     this.conversationHistory.push(result.message);
-                    this.contextTokenSize = result.contextTokenSize;
                     webviewClient.sendStateUpdate();
+
+                    if (result.doneReason && result.doneReason !== 'stop') {
+                        let criticalMsg = `Model generation stopped prematurely. Done Reason: '${result.doneReason}'.`;
+                        if (result.doneReason === 'length') {
+                            let tokenEstimate = -1;
+                            const thinkingText = result.message.thinking || result.message.reasoning_content || '';
+                            if (thinkingText) {
+                                tokenEstimate = await this.chatsitoApiClient.estimateTokens(thinkingText);
+                            }
+                            criticalMsg += `\n- Context: The model hit the generation token limit (context size: ${result.contextTokenSize}, predict size: ${result.predictTokenSize}).`;
+                            criticalMsg += `\n- Thinking Token Estimate: ~${tokenEstimate} tokens.`;
+                            criticalMsg += `\n- Suggestion: increase context size, thinking size, or disable thinking/reasoning if not required.`;
+                        }
+                        // if (result.message.thinking) {
+                        //     criticalMsg += `\n- Last truncated thinking block: "${result.message.thinking.slice(-300)}"`;
+                        // } else if (result.message.reasoning_content) {
+                        //     criticalMsg += `\n- Last truncated reasoning content: "${result.message.reasoning_content.slice(-300)}"`;
+                        // }
+                        logger.logCritical(criticalMsg);
+                    }
 
                     if (result.message.tool_calls && result.message.tool_calls.length > 0) {
                         const currentToolCallsStr = result.message.tool_calls.map(t => {
@@ -291,7 +330,6 @@ Approval contract:
                             continue;
                         }
 
-                        const ResponseRouter = require('./ResponseRouter');
                         let hasExecutedTool = false;
 
                         for (const toolCall of result.message.tool_calls) {

@@ -20,6 +20,18 @@ function activate(context) {
     });
     context.subscriptions.push(evaluateHumanEvalCommand);
 
+    let evaluateLiveCodeBenchCommand = vscode.commands.registerCommand('chatsito.evaluateLiveCodeBench', async () => {
+        const evaluateLiveCodeBench = require('./scripts/evaluateLiveCodeBench');
+        await evaluateLiveCodeBench(sessionManager, context.extensionPath);
+    });
+    context.subscriptions.push(evaluateLiveCodeBenchCommand);
+
+    let evaluateSWEBenchCommand = vscode.commands.registerCommand('chatsito.evaluateSWEBench', async () => {
+        const evaluateSWEBench = require('./scripts/evaluateSWEBench');
+        await evaluateSWEBench(sessionManager, context.extensionPath);
+    });
+    context.subscriptions.push(evaluateSWEBenchCommand);
+
     const provider = new ChatsitoSidebarProvider(context.extensionPath, sessionManager);
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider('chatsito.sidebarView', provider, {

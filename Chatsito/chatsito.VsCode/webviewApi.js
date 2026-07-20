@@ -10,7 +10,7 @@ function logDebug(msg, data) {
 
 function handleChatSubmit(event) {
     event.preventDefault();
-    
+
     const textarea = document.getElementById('promptInput');
     const promptText = textarea.value.trim();
     if (!promptText) return;
@@ -22,7 +22,7 @@ function handleChatSubmit(event) {
     textarea.disabled = true;
     sendBtn.disabled = true;
 
-    logDebug("[Chatsito Webview] User submitted prompt:", promptText);
+    logDebug("[Chatsito Webview] User submitted prompt");
 
     // Send the prompt to the host
     vscode.postMessage({

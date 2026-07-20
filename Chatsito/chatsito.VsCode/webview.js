@@ -63,6 +63,18 @@ let currentLoaderId = null;
 window.addEventListener('message', async (event) => {
     const message = event.data;
     switch (message.command) {
+        case 'simulate_prompt':
+            const txt = document.getElementById('promptInput');
+            if (txt) {
+                txt.value = message.prompt;
+                txt.style.height = 'auto';
+                txt.style.height = (txt.scrollHeight) + 'px';
+                // Trigger form submission
+                setTimeout(() => {
+                    handleChatSubmit({ preventDefault: () => {} });
+                }, 300);
+            }
+            break;
         case 'stateUpdate':
             renderHistory(message.state.conversationHistory, message.state.activeModel);
             const modelSelect = document.getElementById('modelSelect');

@@ -14,7 +14,9 @@ namespace chatsito.Core
         public const string DefaultOllamaUrl = "http://localhost:11434";
         public const float TokenMargin = 1.25f;
         public const int TokenResponse = 2048;
-        public const int TokenMin = 1024 * 8;
+        public const int TokenMin = 1024 * 64;
+        public const int TokenMax = 1024 * 64;
         public const int TimeoutMins = 10;
+        public const int MaxToolIterations = 20;
     }
 }

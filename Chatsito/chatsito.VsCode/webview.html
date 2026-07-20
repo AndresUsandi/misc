@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -81,7 +82,7 @@
 
         .assistant-bubble {
             background-color: var(--vscode-editorWidget-background, #252526);
-            border: 1px solid var(--vscode-widget-border, rgba(255,255,255,0.1));
+            border: 1px solid var(--vscode-widget-border, rgba(255, 255, 255, 0.1));
             color: var(--vscode-editorWidget-foreground, #cccccc);
             border-bottom-left-radius: 2px;
         }
@@ -111,7 +112,8 @@
             margin-bottom: 0;
         }
 
-        .message-bubble ul, .message-bubble ol {
+        .message-bubble ul,
+        .message-bubble ol {
             margin: 0 0 8px 0;
             padding-left: 20px;
         }
@@ -122,7 +124,7 @@
 
         .message-bubble pre {
             background: rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--vscode-widget-border, rgba(255,255,255,0.05));
+            border: 1px solid var(--vscode-widget-border, rgba(255, 255, 255, 0.05));
             padding: 10px;
             border-radius: 6px;
             overflow-x: auto;
@@ -174,9 +176,17 @@
         }
 
         @keyframes hourglass {
-            0% { transform: rotate(0); }
-            50% { transform: rotate(180deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0);
+            }
+
+            50% {
+                transform: rotate(180deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         .loading-text {
@@ -186,7 +196,7 @@
         /* Input Area styling */
         .chat-input-panel {
             padding: 12px;
-            border-top: 1px solid var(--vscode-widget-border, rgba(255,255,255,0.08));
+            border-top: 1px solid var(--vscode-widget-border, rgba(255, 255, 255, 0.08));
             background-color: var(--vscode-editor-background);
         }
 
@@ -275,6 +285,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="chat-container">
         <div class="chat-history" id="chatHistory">
@@ -286,13 +297,19 @@
         </div>
 
         <div class="chat-input-panel">
-            <div class="model-select-container" style="margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <div class="model-select-container"
+                style="margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
                 <span style="font-size: 11px; opacity: 0.7;">Model:</span>
-                <select id="modelSelect" style="background: var(--vscode-dropdown-background, #3c3c3c); color: var(--vscode-dropdown-foreground, #cccccc); border: 1px solid var(--vscode-dropdown-border, #3c3c3c); border-radius: 4px; font-size: 11px; padding: 2px 4px; outline: none; cursor: pointer;" onchange="handleModelChange(this.value)">
+                <select id="modelSelect"
+                    style="background: var(--vscode-dropdown-background, #3c3c3c); color: var(--vscode-dropdown-foreground, #cccccc); border: 1px solid var(--vscode-dropdown-border, #3c3c3c); border-radius: 4px; font-size: 11px; padding: 2px 4px; outline: none; cursor: pointer;"
+                    onchange="handleModelChange(this.value)">
                     <option value="">Loading models...</option>
                 </select>
                 <span style="font-size: 11px; opacity: 0.7; margin-left: 10px;">Mode:</span>
-                <select id="modeSelect" style="background: var(--vscode-dropdown-background, #3c3c3c); color: var(--vscode-dropdown-foreground, #cccccc); border: 1px solid var(--vscode-dropdown-border, #3c3c3c); border-radius: 4px; font-size: 11px; padding: 2px 4px; outline: none; cursor: pointer;" onchange="handleModeChange(this.value)">
+                <select id="modeSelect"
+                    style="background: var(--vscode-dropdown-background, #3c3c3c); color: var(--vscode-dropdown-foreground, #cccccc); border: 1px solid var(--vscode-dropdown-border, #3c3c3c); border-radius: 4px; font-size: 11px; padding: 2px 4px; outline: none; cursor: pointer;"
+                    onchange="handleModeChange(this.value)">
+                    <option value="admin">Admin-Mode</option>
                     <option value="ai">AI-Mode</option>
                     <option value="hybrid">Hybrid-Mode</option>
                     <option value="user">User-Mode</option>
@@ -300,13 +317,10 @@
             </div>
             <form id="chatForm" onsubmit="handleChatSubmit(event)">
                 <div class="input-group">
-                    <textarea 
-                        id="promptInput" 
-                        class="chat-textarea" 
-                        placeholder="Type a message to Chatsito..." 
-                        rows="1" 
-                        onkeydown="submitOnEnter(event)"></textarea>
-                    <button type="button" class="btn-clear" id="clearBtn" title="Clear Chat History" onclick="clearChat()">🗑️</button>
+                    <textarea id="promptInput" class="chat-textarea" placeholder="Type a message to Chatsito..."
+                        rows="1" onkeydown="submitOnEnter(event)"></textarea>
+                    <button type="button" class="btn-clear" id="clearBtn" title="Clear Chat History"
+                        onclick="clearChat()">🗑️</button>
                     <button type="submit" class="btn-send" id="sendBtn">Send</button>
                 </div>
             </form>
@@ -316,4 +330,5 @@
     <script src="{{webviewApiJsUri}}"></script>
     <script src="{{webviewJsUri}}"></script>
 </body>
+
 </html>

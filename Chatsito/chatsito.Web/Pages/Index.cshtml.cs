@@ -51,6 +51,23 @@ namespace chatsito.Web.Pages
             await LoadModelsAsync();
         }
 
+        private static readonly string PersistentModelFilePath = System.IO.Path.Combine(AppContext.BaseDirectory, "last_selected_model.txt");
+
+        private void PersistModelSelection(string model)
+        {
+            if (string.IsNullOrWhiteSpace(model)) return;
+
+            HttpContext.Session.SetString("SelectedModel", model);
+            try
+            {
+                System.IO.File.WriteAllText(PersistentModelFilePath, model);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to persist selected model to disk.");
+            }
+        }
+
         private async Task LoadModelsAsync()
         {
             try
@@ -62,7 +79,38 @@ namespace chatsito.Web.Pages
                 _logger.LogError(ex, "Failed to load models list.");
             }
 
-            SelectedModel = HttpContext.Session.GetString("SelectedModel") ?? AvailableModels.FirstOrDefault();
+            string? selected = HttpContext.Session.GetString("SelectedModel");
+            if (string.IsNullOrEmpty(selected))
+            {
+                string? persistedModel = null;
+                try
+                {
+                    if (System.IO.File.Exists(PersistentModelFilePath))
+                    {
+                        persistedModel = System.IO.File.ReadAllText(PersistentModelFilePath)?.Trim();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to read persisted model from disk.");
+                }
+
+                if (!string.IsNullOrEmpty(persistedModel) && AvailableModels.Contains(persistedModel))
+                {
+                    selected = persistedModel;
+                }
+                else
+                {
+                    selected = AvailableModels.FirstOrDefault();
+                }
+
+                if (!string.IsNullOrEmpty(selected))
+                {
+                    HttpContext.Session.SetString("SelectedModel", selected);
+                }
+            }
+
+            SelectedModel = selected;
             IncludeThinking = HttpContext.Session.GetString("IncludeThinking") == "true";
         }
 
@@ -114,6 +162,8 @@ namespace chatsito.Web.Pages
                 }
             }
 
+            PersistModelSelection(model);
+
             Response.ContentType = "text/event-stream";
             
             Func<string, string, Task> sendEvent = async (type, content) =>
@@ -127,7 +177,7 @@ namespace chatsito.Web.Pages
             try
             {
                 bool useTools = true;
-                int maxToolCycles = 10;
+                int maxToolCycles = Configuration.MaxToolIterations;
                 int currentCycle = 0;
                 
                 System.Diagnostics.Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] [Stream] Starting stream loop. Model: {model}, IncludeThinking: {request.IncludeThinking}");
@@ -264,7 +314,7 @@ namespace chatsito.Web.Pages
             {
                 if (!string.IsNullOrEmpty(request.Model))
                 {
-                    HttpContext.Session.SetString("SelectedModel", request.Model);
+                    PersistModelSelection(request.Model);
                 }
                 
                 HttpContext.Session.SetString("IncludeThinking", request.IncludeThinking ? "true" : "false");

@@ -6,6 +6,49 @@ const getInitialPromptContext = require('../../../ContextBuilder.js');
 describe('getInitialPromptContext Tool', function () {
     this.timeout(20000);
 
+    let commandsDisposables = [];
+    before(() => {
+        const prepareCallHierarchyStub = vscode.commands.registerCommand('vscode.executePrepareCallHierarchy', (uri, position) => {
+            const range = new vscode.Range(new vscode.Position(4, 0), new vscode.Position(6, 1));
+            const selectionRange = new vscode.Range(new vscode.Position(4, 9), new vscode.Position(4, 21));
+            return [new vscode.CallHierarchyItem(
+                vscode.SymbolKind.Function,
+                'CallerMethod',
+                '',
+                uri,
+                range,
+                selectionRange
+            )];
+        });
+
+        const provideOutgoingCallsStub = vscode.commands.registerCommand('vscode.executeProvideOutgoingCalls', (item) => {
+            const range = new vscode.Range(new vscode.Position(0, 0), new vscode.Position(2, 1));
+            const selectionRange = new vscode.Range(new vscode.Position(0, 9), new vscode.Position(0, 21));
+            const calleeItem = new vscode.CallHierarchyItem(
+                vscode.SymbolKind.Function,
+                'TargetMethod',
+                '',
+                item.uri,
+                range,
+                selectionRange
+            );
+            return [
+                new vscode.CallHierarchyOutgoingCall(
+                    calleeItem,
+                    [new vscode.Range(new vscode.Position(5, 4), new vscode.Position(5, 16))]
+                )
+            ];
+        });
+
+        commandsDisposables.push(prepareCallHierarchyStub, provideOutgoingCallsStub);
+    });
+
+    after(() => {
+        for (const disp of commandsDisposables) {
+            disp.dispose();
+        }
+    });
+
     it('should extract enclosing symbol and its caller (references) call stack context in a JS file', async () => {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         assert.ok(workspaceFolders && workspaceFolders.length > 0, 'No workspace folder open for test');
@@ -34,7 +77,7 @@ describe('getInitialPromptContext Tool', function () {
 
         const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(fixturePath));
         await vscode.window.showTextDocument(doc);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 5000));
 
         // Act: CallerMethod is at line 5
         const output = await getInitialPromptContext(fixturePath, 5, 1);

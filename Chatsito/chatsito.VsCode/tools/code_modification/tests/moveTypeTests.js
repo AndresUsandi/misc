@@ -30,6 +30,6 @@ describe('moveType Tool', function () {
 
     it('should return error for missing parameters', async () => {
         const output = await moveType('', '', '');
-        assert.strictEqual(output, 'Error: Missing required parameters.');
+        assert.ok(output.includes('Missing required parameters'));
     });
 });

@@ -20,12 +20,12 @@ describe('renameSymbol Tool', function () {
         await new Promise(resolve => setTimeout(resolve, 3000));
         
         const args = {
-            file_path: fixturePath,
+            filePath: fixturePath,
             line: 1,
             character: 11,
-            new_name: 'newName'
+            newName: 'newName'
         };
-        const output = await PatchManager.executeTool('rename_symbol', args);
+        const output = await PatchManager.executeTool('renameSymbol', args);
         
         assert.ok(typeof output === 'string' && output.includes('Successfully renamed'), `Should return success. Output: ${output}`);
         
@@ -37,7 +37,7 @@ describe('renameSymbol Tool', function () {
     });
 
     it('should return error for missing parameters', async () => {
-        const output = await PatchManager.executeTool('rename_symbol', {});
+        const output = await PatchManager.executeTool('renameSymbol', {});
         assert.ok(output.includes('Missing required parameters'), `Output: ${output}`);
     });
 });

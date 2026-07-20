@@ -18,3 +18,50 @@ The repository is structured into three primary projects, each handling a distin
 ## Getting Started
 
 To learn more about the internal logic, class hierarchies, and specific capabilities of each component, please refer to their respective README files linked above. For additional information, the project-level documents error on the side of providing extensive architectural diagrams and functional summaries.
+
+## Benchmarks
+
+### HumanEval Functional Correctness
+
+We evaluate Chatsito's code generation capabilities using the industry-standard **HumanEval** dataset. Below are the functional correctness results of the local model execution pipeline:
+
+| Metric | Result |
+| :--- | :--- |
+| **Pass Rate (pass@1)** | **94.51%** (`0.9451219512195121`) |
+| **Attempted Tasks** | **164 / 164** |
+| **Completed Tasks** | **164 / 164** (100% completion generation rate) |
+| **Failed Completions** | **0** (No generation cutoff failures) |
+
+#### Execution Log Highlights
+
+```text
+=== HumanEval Output ===
+Reading samples...
+Running test suites...
+Writing results to d:\Temp\chatsito_eval\samples.jsonl_results.jsonl...
+{'pass@1': np.float64(0.9451219512195121)}
+
+=== Errors / Warnings ===
+None (100% of tasks completed successfully)
+```
+
+### LiveCodeBench Code Generation
+
+We also evaluate Chatsito's code generation on the **LiveCodeBench** code generation lite dataset. Below are the functional correctness results on a subset of 100 tests.
+
+| Metric | Result |
+| :--- | :--- |
+| **Pass Rate (pass@1)** | **91.92%** (`0.9191919191919192`) |
+| **Evaluated Tasks** | **100** |
+
+#### Execution Log Highlights
+
+```text
+=== LiveCodeBench Output ===
+Loaded 1055 problems
+Evaluating 100...
+0.9191919191919192
+
+
+> [!NOTE]
+> Additional benchmark assessments (including MBPP and SWE-bench subsets) are currently in development, and more benchmarks are coming soon.

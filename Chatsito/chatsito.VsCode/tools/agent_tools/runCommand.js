@@ -10,7 +10,8 @@ const ALLOWLIST = [
     'git status',
     'git log',
     'git diff',
-    'git show'
+    'git show',
+    'node'
 ];
 
 async function runCommand(command) {

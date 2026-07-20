@@ -33,7 +33,11 @@ async function getContextAtLocation(filePath, line, character, callStackLevel = 
         const doc = await vscode.workspace.openTextDocument(uri);
         const symbols = await vscode.commands.executeCommand('vscode.executeDocumentSymbolProvider', uri) || [];
         
-        const enclosingSym = findEnclosingSymbol(symbols, line);
+        let enclosingSym = findEnclosingSymbol(symbols, line);
+        if (!enclosingSym && line + 1 < doc.lineCount) {
+            enclosingSym = findEnclosingSymbol(symbols, line + 1);
+        }
+        
         if (!enclosingSym) {
             return `No enclosing class or method symbol found at line ${line + 1}`;
         }

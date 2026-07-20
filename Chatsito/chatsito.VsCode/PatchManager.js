@@ -6,7 +6,7 @@ class PatchManager {
     constructor() {
         this.patchHistory = [];
         this.toolsMap = new Map();
-        
+
         // Lazy load the tools to avoid circular dependencies if needed
         this._loadTools();
     }
@@ -16,8 +16,7 @@ class PatchManager {
         const tools = ToolDefinitionProvider.getTools();
         for (const def of tools) {
             if (def.isPatchingTool) {
-                const camelCaseName = def.name.replace(/_([a-z])/g, (m, p1) => p1.toUpperCase());
-                const implementationPath = './tools/code_modification/' + camelCaseName;
+                const implementationPath = './tools/code_modification/' + def.name;
                 this.toolsMap.set(def.name, require(implementationPath));
             }
         }
@@ -51,7 +50,7 @@ class PatchManager {
         if (editOrCommand && typeof editOrCommand.entries === 'function') {
             count = editOrCommand.entries().length;
         }
-        
+
         this.patchHistory.push({
             timestamp: new Date().toISOString(),
             description: description,
@@ -69,64 +68,7 @@ class PatchManager {
             return `Error: Unknown patch tool '${toolName}'`;
         }
 
-        // Stale edit check for specific tools (like replace_code)
-        if (args.expected_original_text && args.file_path && args.start_line !== undefined && args.start_char !== undefined && args.end_line !== undefined && args.end_char !== undefined) {
-            
-            // Prevent LLM hallucination where it copies the original text into the replacement field
-            if (args.text_to_replace) {
-                const normalizedToReplace = args.text_to_replace.replace(/\r\n/g, '\n').trim();
-                const normalizedExpectedStr = args.expected_original_text.replace(/\r\n/g, '\n').trim();
-                if (normalizedToReplace === normalizedExpectedStr) {
-                    return `Error: 'text_to_replace' is identical to 'expected_original_text'. You must provide the NEW modified code in 'text_to_replace'. The replacement was rejected because it would result in no changes.`;
-                }
-            }
 
-            try {
-                let resolvedUri;
-                try {
-                    resolvedUri = this.resolvePath(args.file_path);
-                } catch (e) {
-                    return `Error: ${e.message}`;
-                }
-                
-                const doc = await vscode.workspace.openTextDocument(resolvedUri);
-                const range = new vscode.Range(new vscode.Position(parseInt(args.start_line, 10) - 1, parseInt(args.start_char, 10) - 1), new vscode.Position(parseInt(args.end_line, 10) - 1, parseInt(args.end_char, 10) - 1));
-                const currentText = doc.getText(range);
-                
-                const normalizedCurrent = currentText.replace(/\r\n/g, '\n');
-                const normalizedExpected = args.expected_original_text.replace(/\r\n/g, '\n');
-                
-                if (normalizedCurrent !== normalizedExpected) {
-                    const fullText = doc.getText().replace(/\r\n/g, '\n');
-                    const index = fullText.indexOf(normalizedExpected);
-                    const lastIndex = fullText.lastIndexOf(normalizedExpected);
-                    
-                    if (index !== -1 && index === lastIndex) {
-                        const before = fullText.substring(0, index);
-                        const linesBefore = before.split('\n');
-                        const newStartLine = linesBefore.length;
-                        const newStartChar = linesBefore[linesBefore.length - 1].length + 1;
-                        
-                        const expectedLines = normalizedExpected.split('\n');
-                        const newEndLine = newStartLine + expectedLines.length - 1;
-                        const newEndChar = expectedLines.length > 1 
-                            ? expectedLines[expectedLines.length - 1].length + 1 
-                            : newStartChar + normalizedExpected.length;
-                        
-                        args.start_line = newStartLine;
-                        args.start_char = newStartChar;
-                        args.end_line = newEndLine;
-                        args.end_char = newEndChar;
-                        
-                        logger.log(`[PatchManager] Auto-corrected tool range to line ${newStartLine}:${newStartChar} -> ${newEndLine}:${newEndChar}`);
-                    } else {
-                        return `Error: Stale edit detected in ${vscode.workspace.asRelativePath(resolvedUri)}. The text at the specified range has changed. Expected: "${args.expected_original_text}", Found: "${currentText}". Please refresh your context and try again.`;
-                    }
-                }
-            } catch (e) {
-                return `Error verifying target file for stale edit: ${e.message}`;
-            }
-        }
 
         try {
             const ToolDefinitionProvider = require('./ToolDefinitionProvider');
@@ -140,11 +82,11 @@ class PatchManager {
             if (typeof result === 'string') {
                 return result;
             }
-            
+
             if (result && result.error) {
                 return result.error;
             }
-            
+
             if (!result || (!result.edit && !result.command)) {
                 return `Error: Tool '${toolName}' did not return a valid WorkspaceEdit or command.`;
             }
@@ -152,12 +94,19 @@ class PatchManager {
             if (result.edit) {
                 const edit = result.edit;
                 const diffSummary = this.generateDiff(toolName, edit);
-                
+
                 // Show diff before applying
                 let isApproved = false;
                 if (selectedMode === 'ai' || process.env.NODE_ENV === 'test' || process.env.VSCODE_IPC_HOOK_EXTHOST) {
                     isApproved = true;
-                } else {
+                } else if (selectedMode === 'hybrid') {
+                    if (typeof edit.entries === 'function') {
+                        const uris = edit.entries().map(entry => entry[0]);
+                        isApproved = uris.every(uri => vscode.workspace.getWorkspaceFolder(uri) !== undefined);
+                    }
+                }
+
+                if (!isApproved) {
                     try {
                         const message = `Chatsito wants to apply a patch:\n\n${diffSummary}\n\nDo you want to apply these changes?`;
                         const selection = await vscode.window.showWarningMessage(
@@ -183,7 +132,7 @@ class PatchManager {
 
                 const entriesCount = typeof edit.entries === 'function' ? edit.entries().length : 0;
                 const success = await vscode.workspace.applyEdit(edit);
-                
+
                 if (success) {
                     this.trackChange(toolName, edit);
 
@@ -199,7 +148,7 @@ class PatchManager {
                             }
                         }
                     }
-                    
+
                     return `${result.successMessage || 'Successfully applied modification.'}\n${diffSummary}`;
                 } else {
                     return `Failed to apply workspace edit for: ${toolName}. Possible merge conflict or overlapping edits.`;
@@ -209,7 +158,7 @@ class PatchManager {
                 this.trackChange(toolName, { command: result.command });
                 return result.successMessage || `Executed command for ${toolName}.`;
             }
-            
+
         } catch (e) {
             return `Error executing patch tool ${toolName}: ${e.message}`;
         }

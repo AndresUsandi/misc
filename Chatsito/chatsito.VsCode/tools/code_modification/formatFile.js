@@ -1,20 +1,31 @@
 const vscode = require('vscode');
 const path = require('path');
+const { validateRequiredParams } = require('./codeUtils');
 
-async function formatFile(filePath) {
-    if (!filePath) return "Error: Missing required parameters.";
+async function formatFile(args) {
+    let filePath;
+    if (args && typeof args === 'object' && !Array.isArray(args)) {
+        ({ filePath } = args);
+    } else {
+        filePath = arguments[0];
+    }
+
+    const normalizedArgs = { filePath };
+    const validationErr = validateRequiredParams("formatFile", normalizedArgs);
+    if (validationErr) {
+        return validationErr;
+    }
 
     try {
         const PathResolver = require('../../PathResolver');
         const uri = vscode.Uri.file(PathResolver.resolveAndValidateWorkspacePath(filePath));
 
         const doc = await vscode.workspace.openTextDocument(uri);
-        // Execute format document provider
         const edits = await vscode.commands.executeCommand('vscode.executeFormatDocumentProvider', uri, {
             insertSpaces: true,
             tabSize: 4
         });
-        
+
         if (edits && edits.length > 0) {
             const edit = new vscode.WorkspaceEdit();
             for (const e of edits) {

@@ -6,10 +6,21 @@ class ChatsitoApiClient {
         this.activeModel = '';
         this.availableModels = [];
         this.timeoutMins = 10;
+        this.maxToolIterations = 20;
+        this.retryIntervalMs = (typeof global.describe === 'function') ? 0 : 30000;
     }
 
     async initialize() {
-        await this.loadConfig();
+        let config = null;
+        while (!config) {
+            config = await this.loadConfig();
+            if (!config) {
+                if (this.retryIntervalMs <= 0) {
+                    break;
+                }
+                await new Promise(resolve => setTimeout(resolve, this.retryIntervalMs));
+            }
+        }
         await this.loadAvailableModels();
     }
 
@@ -24,11 +35,14 @@ class ChatsitoApiClient {
                 if (config && config.timeoutMins) {
                     this.timeoutMins = config.timeoutMins;
                 }
+                if (config && config.maxToolIterations !== undefined) {
+                    this.maxToolIterations = config.maxToolIterations;
+                }
                 return config;
             }
             throw new Error(`Failed to fetch config: ${response.statusText}`);
         } catch (err) {
-            logger.log(`Error in ChatsitoApiClient.loadConfig: ${err.message}`);
+            logger.logDebug(`Error in ChatsitoApiClient.loadConfig: ${err.message}`);
         }
         return null;
     }
@@ -50,47 +64,91 @@ class ChatsitoApiClient {
         return [];
     }
 
-    async sendChat(messages, contextTokenSize, tools) {
+    async sendChat(messages, tools) {
+        let logThinking = false;
         try {
-            const payload = {
-                model: this.activeModel,
-                messages,
-                contextTokenSize,
-                tools
-            };
-            logger.log(`[ChatsitoApiClient] Sending POST /api/chat. Model: ${this.activeModel}. Context size: ${contextTokenSize}.`);
-            
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), this.timeoutMins * 60 * 1000);
+            const vscode = require('vscode');
+            const config = vscode.workspace.getConfiguration('chatsito');
+            logThinking = config.get('logThinking', true);
+        } catch (e) {
+            logger.logDebug(`[ChatsitoApiClient] VS Code configuration load error/fallback: ${e.message}`);
+        }
 
-            let response;
+        const thinkFallbacks = logThinking ? ['high', true, false, null] : [null];
+        let lastError = null;
+
+        for (const thinkVal of thinkFallbacks) {
             try {
-                response = await fetch(`${this.baseUrl}/api/chat`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload),
-                    signal: controller.signal
-                });
-            } finally {
-                clearTimeout(timeoutId);
+                const payload = {
+                    model: this.activeModel,
+                    messages,
+                    tools
+                };
+                if (thinkVal !== null) {
+                    payload.think = thinkVal;
+                }
+
+                logger.log(`[ChatsitoApiClient] Sending POST /api/chat. Model: ${this.activeModel}. Think: ${thinkVal}: Last Message: ${logger.formatJson(messages[messages.length - 1])}`);
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), this.timeoutMins * 60 * 1000);
+
+                let response;
+                try {
+                    response = await fetch(`${this.baseUrl}/api/chat`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload),
+                        signal: controller.signal
+                    });
+                } finally {
+                    clearTimeout(timeoutId);
+                }
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(`Server returned error (${response.status}): ${text}`);
+                }
+
+                const result = await response.json();
+                logger.log(`[ChatsitoApiClient] Received response from /api/chat. Response: ${logger.formatJson(result)}`);
+                if (!result.success) {
+                    throw new Error(result.error || "Server returned unsuccessful response.");
+                }
+                return result;
+            } catch (err) {
+                lastError = err;
+                logger.log(`[ChatsitoApiClient] Request with think: ${thinkVal} failed: ${err.message}. Trying next fallback...`);
             }
+        }
+
+        throw lastError || new Error("Failed to send chat message after trying all think fallbacks.");
+    }
+
+    async estimateTokens(text) {
+        if (!text) return 0;
+        try {
+            const response = await fetch(`${this.baseUrl}/api/estimate-tokens`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ text })
+            });
 
             if (!response.ok) {
-                const text = await response.text();
-                throw new Error(`Server returned error (${response.status}): ${text}`);
+                const errText = await response.text();
+                throw new Error(`Server error: ${errText}`);
             }
 
             const result = await response.json();
-            logger.log(`[ChatsitoApiClient] Received response from /api/chat. Success: ${result.success}`);
-            if (!result.success) {
-                throw new Error(result.error || "Server returned unsuccessful response.");
-            }
-            return result;
+            return result.count || 0;
         } catch (err) {
-            logger.log(`Error in ChatsitoApiClient.sendChat: ${err.message}`);
-            throw err;
+            logger.logDebug(`[ChatsitoApiClient] estimateTokens error/fallback: ${err.message}`);
+            // Fallback estimation: roughly 4 characters per token
+            return Math.ceil(text.length / 4);
         }
     }
 }

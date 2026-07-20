@@ -16,6 +16,16 @@ describe('ChatSessionManager Tests', () => {
                     this._data[key] = value;
                     return Promise.resolve();
                 }
+            },
+            globalState: {
+                _data: {},
+                get(key) {
+                    return this._data[key];
+                },
+                update(key, value) {
+                    this._data[key] = value;
+                    return Promise.resolve();
+                }
             }
         };
         manager = new ChatSessionManager(mockContext);
@@ -107,8 +117,8 @@ describe('ChatSessionManager Tests', () => {
     });
 
     it('should execute tools successfully', async () => {
-        // Test search_workspace tool execution route (which fails gracefully on missing params/no query instead of throwing)
-        const result = await manager.toolManager.executeTool('search_workspace', {});
+        // Test searchWorkspace tool execution route (which fails gracefully on missing params/no query instead of throwing)
+        const result = await manager.toolManager.executeTool('searchWorkspace', {});
         assert.ok(result.includes('Error'), 'Should fail gracefully with an Error message on missing parameter');
     });
 
@@ -146,5 +156,73 @@ describe('ChatSessionManager Tests', () => {
         assert.ok(mockClient.progressCalls.includes('Chatsito is thinking...'));
         assert.strictEqual(mockClient.cycleFinishedCalled, true);
         assert.strictEqual(mockClient.errorCalls.length, 0);
+    });
+
+    it('should persist activeModel and selectedMode in globalState', async () => {
+        manager.activeModel = 'persisted-model-123';
+        manager.selectedMode = 'plan';
+
+        assert.strictEqual(mockContext.globalState.get('chatsito.activeModel'), 'persisted-model-123');
+        assert.strictEqual(mockContext.globalState.get('chatsito.selectedMode'), 'plan');
+
+        // Create new manager instance with same mockContext state
+        const manager2 = new ChatSessionManager(mockContext);
+        assert.strictEqual(manager2.selectedMode, 'plan');
+        
+        // Mock client calls to return our persisted model list
+        manager2.chatsitoApiClient.loadAvailableModels = async () => {
+            manager2.chatsitoApiClient.availableModels = ['persisted-model-123'];
+            return manager2.chatsitoApiClient.availableModels;
+        };
+        manager2.chatsitoApiClient.loadConfig = async () => { return {}; };
+        
+        await manager2.initializeApiClient();
+        assert.strictEqual(manager2.activeModel, 'persisted-model-123');
+    });
+
+    it('should log critical warning when doneReason indicates cutoff', async () => {
+        const logger = require('../../../logger');
+        let criticalLogCalled = false;
+        let criticalLogMsg = '';
+        const originalLogCritical = logger.logCritical;
+        logger.logCritical = (msg) => {
+            criticalLogCalled = true;
+            criticalLogMsg = msg;
+        };
+
+        try {
+            manager.chatsitoApiClient.sendChat = async () => {
+                return {
+                    success: true,
+                    message: { 
+                        role: 'assistant', 
+                        content: '', 
+                        thinking: 'Reasoning process cut off at line...' 
+                    },
+                    doneReason: 'length',
+                    contextTokenSize: 4096
+                };
+            };
+
+            manager.chatsitoApiClient.estimateTokens = async () => {
+                return 10;
+            };
+
+            const mockClient = {
+                sendProgress() {},
+                sendStateUpdate() {},
+                sendCycleFinished() {},
+                sendError() {}
+            };
+
+            await manager.continueSession('Test prompt', mockClient);
+
+            assert.strictEqual(criticalLogCalled, true, 'Should have logged a critical warning');
+            assert.ok(criticalLogMsg.includes('stopped prematurely'), 'Warning should report premature stop');
+            assert.ok(criticalLogMsg.includes('length'), 'Warning should report doneReason: length');
+            assert.ok(criticalLogMsg.includes('Thinking Token Estimate: ~10 tokens'), 'Warning should include thinking token estimate');
+        } finally {
+            logger.logCritical = originalLogCritical;
+        }
     });
 });

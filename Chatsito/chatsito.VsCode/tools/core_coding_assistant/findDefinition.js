@@ -17,11 +17,20 @@ async function findDefinition(filePath, line, character) {
             }
         }
 
-        const position = new vscode.Position(line, character);
+        let position = new vscode.Position(line, character);
         // Ensure document is loaded
-        await vscode.workspace.openTextDocument(uri);
+        const doc = await vscode.workspace.openTextDocument(uri);
         
-        const definitions = await vscode.commands.executeCommand('vscode.executeDefinitionProvider', uri, position) || [];
+        let definitions = await vscode.commands.executeCommand('vscode.executeDefinitionProvider', uri, position) || [];
+        
+        if ((!definitions || (Array.isArray(definitions) && definitions.length === 0)) && line + 1 < doc.lineCount) {
+            const backupPosition = new vscode.Position(line + 1, character);
+            const backupDefs = await vscode.commands.executeCommand('vscode.executeDefinitionProvider', uri, backupPosition);
+            if (backupDefs && (!Array.isArray(backupDefs) || backupDefs.length > 0)) {
+                definitions = backupDefs;
+                position = backupPosition;
+            }
+        }
         
         if (!definitions || (Array.isArray(definitions) && definitions.length === 0)) {
             return `No definitions found for symbol at ${vscode.workspace.asRelativePath(uri)}:${line + 1}:${character + 1}`;

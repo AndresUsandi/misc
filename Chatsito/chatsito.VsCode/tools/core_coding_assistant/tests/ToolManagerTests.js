@@ -8,39 +8,39 @@ describe('ToolManager Tests', () => {
         toolManager = new ToolManager();
     });
 
-    it('should register all 57 tools on construction', () => {
-        assert.strictEqual(toolManager.tools.size, 57);
-        assert.ok(toolManager.tools.has('search_workspace'));
-        assert.ok(toolManager.tools.has('get_full_graph'));
-        assert.ok(toolManager.tools.has('get_current_editor_context'));
-        assert.ok(toolManager.tools.has('read_file'));
-        assert.ok(toolManager.tools.has('get_context_at_location'));
-        assert.ok(toolManager.tools.has('find_definition'));
-        assert.ok(toolManager.tools.has('find_references'));
-        assert.ok(toolManager.tools.has('get_symbols_in_file'));
-        assert.ok(toolManager.tools.has('get_diagnostics'));
-        assert.ok(toolManager.tools.has('insert_code'));
-        assert.ok(toolManager.tools.has('replace_code'));
-        assert.ok(toolManager.tools.has('delete_code'));
-        assert.ok(toolManager.tools.has('rename_symbol'));
-        assert.ok(toolManager.tools.has('move_file'));
-        assert.ok(toolManager.tools.has('move_type'));
-        assert.ok(toolManager.tools.has('extract_method'));
-        assert.ok(toolManager.tools.has('format_file'));
-        assert.ok(toolManager.tools.has('organize_imports'));
+    it('should register all 68 tools on construction', () => {
+        assert.strictEqual(toolManager.tools.size, 68);
+        assert.ok(toolManager.tools.has('searchWorkspace'));
+        assert.ok(toolManager.tools.has('getFullGraph'));
+        assert.ok(toolManager.tools.has('getCurrentEditorContext'));
+        assert.ok(toolManager.tools.has('readFile'));
+        assert.ok(toolManager.tools.has('getContextAtLocation'));
+        assert.ok(toolManager.tools.has('findDefinition'));
+        assert.ok(toolManager.tools.has('findReferences'));
+        assert.ok(toolManager.tools.has('getSymbolsInFile'));
+        assert.ok(toolManager.tools.has('getDiagnostics'));
+        assert.ok(toolManager.tools.has('insertCode'));
+        assert.ok(toolManager.tools.has('replaceCode'));
+        assert.ok(toolManager.tools.has('deleteCode'));
+        assert.ok(toolManager.tools.has('renameSymbol'));
+        assert.ok(toolManager.tools.has('moveFile'));
+        assert.ok(toolManager.tools.has('moveType'));
+        assert.ok(toolManager.tools.has('extractMethod'));
+        assert.ok(toolManager.tools.has('formatFile'));
+        assert.ok(toolManager.tools.has('organizeImports'));
 
         // New category tools check
-        assert.ok(toolManager.tools.has('search_knowledge'));
-        assert.ok(toolManager.tools.has('run_command'));
-        assert.ok(toolManager.tools.has('create_plan'));
-        assert.ok(toolManager.tools.has('find_symbol'));
-        assert.ok(toolManager.tools.has('search_docs'));
-        assert.ok(toolManager.tools.has('get_project_dependencies'));
+        assert.ok(toolManager.tools.has('searchKnowledge'));
+        assert.ok(toolManager.tools.has('runCommand'));
+        assert.ok(toolManager.tools.has('createPlan'));
+        assert.ok(toolManager.tools.has('findSymbol'));
+        assert.ok(toolManager.tools.has('searchDocs'));
+        assert.ok(toolManager.tools.has('getProjectDependencies'));
     });
 
     it('should format tool definitions correctly for the model', () => {
         const definitions = toolManager.getToolsDefinition();
-        assert.strictEqual(definitions.length, 57);
+        assert.strictEqual(definitions.length, 68);
         
         definitions.forEach(def => {
             assert.strictEqual(def.type, 'function');
@@ -50,7 +50,7 @@ describe('ToolManager Tests', () => {
             assert.ok(def.function.parameters);
         });
 
-        const searchDef = definitions.find(d => d.function.name === 'search_workspace');
+        const searchDef = definitions.find(d => d.function.name === 'searchWorkspace');
         assert.ok(searchDef);
         assert.strictEqual(searchDef.function.description.includes('Searches the current workspace'), true);
     });
