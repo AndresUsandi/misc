@@ -1,0 +1,49 @@
+services:
+  opensearch-node:
+    image: opensearchproject/opensearch:2.17.0
+    container_name: bookito-opensearch
+    environment:
+      - cluster.name=bookito-cluster
+      - node.name=bookito-node
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms16g -Xmx16g"
+      - "knn.memory.circuit_breaker.limit=48g"
+      - DISABLE_SECURITY_PLUGIN=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    ports:
+      - 9200:9200
+      - 9600:9600
+    networks:
+      - bookito-net
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.17.0
+    container_name: bookito-dashboards
+    ports:
+      - 5601:5601
+    expose:
+      - "5601"
+    environment:
+      - OPENSEARCH_HOSTS=["http://opensearch-node:9200"]
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
+    networks:
+      - bookito-net
+    depends_on:
+      - opensearch-node
+
+volumes:
+  opensearch-data:
+    driver: local
+
+networks:
+  bookito-net:
+    driver: bridge

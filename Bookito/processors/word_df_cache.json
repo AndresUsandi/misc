@@ -1,0 +1,179 @@
+{
+  "_metadata": {
+    "total_books": 1756
+  },
+  "words": {
+    "kubernetes": {
+      "book_count": 8,
+      "df": 0.0046
+    },
+    "data": {
+      "book_count": 1719,
+      "df": 0.9789
+    },
+    "aws": {
+      "book_count": 56,
+      "df": 0.0319
+    },
+    "microservices": {
+      "book_count": 8,
+      "df": 0.0046
+    },
+    "requirements": {
+      "book_count": 1510,
+      "df": 0.8599
+    },
+    "application": {
+      "book_count": 1685,
+      "df": 0.9596
+    },
+    "regions": {
+      "book_count": 740,
+      "df": 0.4214
+    },
+    "services": {
+      "book_count": 1547,
+      "df": 0.881
+    },
+    "cache": {
+      "book_count": 1253,
+      "df": 0.7136
+    },
+    "database": {
+      "book_count": 1595,
+      "df": 0.9083
+    },
+    "architecture": {
+      "book_count": 1240,
+      "df": 0.7062
+    },
+    "solution": {
+      "book_count": 1601,
+      "df": 0.9117
+    },
+    "postgresql": {
+      "book_count": 298,
+      "df": 0.1697
+    },
+    "retrieve": {
+      "book_count": 1462,
+      "df": 0.8326
+    },
+    "configuration": {
+      "book_count": 1430,
+      "df": 0.8144
+    },
+    "information": {
+      "book_count": 1733,
+      "df": 0.9869
+    },
+    "reference": {
+      "book_count": 1669,
+      "df": 0.9505
+    },
+    "spikes": {
+      "book_count": 198,
+      "df": 0.1128
+    },
+    "bottleneck": {
+      "book_count": 494,
+      "df": 0.2813
+    },
+    "traffic": {
+      "book_count": 1095,
+      "df": 0.6236
+    },
+    "periods": {
+      "book_count": 1015,
+      "df": 0.578
+    },
+    "apis": {
+      "book_count": 776,
+      "df": 0.4419
+    },
+    "layer": {
+      "book_count": 1389,
+      "df": 0.791
+    },
+    "load": {
+      "book_count": 1591,
+      "df": 0.906
+    },
+    "entries": {
+      "book_count": 1459,
+      "df": 0.8309
+    },
+    "failures": {
+      "book_count": 772,
+      "df": 0.4396
+    },
+    "failure": {
+      "book_count": 1331,
+      "df": 0.758
+    },
+    "alternatives": {
+      "book_count": 1052,
+      "df": 0.5991
+    },
+    "model": {
+      "book_count": 1584,
+      "df": 0.9021
+    },
+    "scenarios": {
+      "book_count": 1047,
+      "df": 0.5962
+    },
+    "analysis": {
+      "book_count": 1285,
+      "df": 0.7318
+    },
+    "individual": {
+      "book_count": 1653,
+      "df": 0.9413
+    },
+    "node": {
+      "book_count": 1110,
+      "df": 0.6321
+    },
+    "probability": {
+      "book_count": 520,
+      "df": 0.2961
+    },
+    "multiple": {
+      "book_count": 1693,
+      "df": 0.9641
+    },
+    "complexity": {
+      "book_count": 1394,
+      "df": 0.7938
+    },
+    "feature": {
+      "book_count": 1653,
+      "df": 0.9413
+    },
+    "design": {
+      "book_count": 1668,
+      "df": 0.9499
+    },
+    "document": {
+      "book_count": 1557,
+      "df": 0.8867
+    },
+    "tradeoff": {
+      "book_count": 361,
+      "df": 0.2056
+    },
+    "drones": {
+      "book_count": 22,
+      "df": 0.0125
+    },
+    "gimbals": {
+      "book_count": 1,
+      "df": 0.0006
+    },
+    "antennas": {
+      "book_count": 103,
+      "df": 0.0587
+    }
+  }
+}

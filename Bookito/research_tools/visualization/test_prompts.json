@@ -1,0 +1,144 @@
+{
+    "testSuite": "Bookito Feature Design Benchmark v1",
+    "version": "1.0",
+    "prompts": [
+        {
+            "id": "FEATURE-001",
+            "primaryCategory": "Distributed System",
+            "categories": [
+                "Distributed System",
+                "Database/Data Storage",
+                "Performance/Scalability",
+                "Cloud Infrastructure",
+                "Reliability/Fault Tolerance"
+            ],
+            "difficulty": "Medium",
+            "prompt": "Our application currently consists of approximately 80 microservices deployed on Kubernetes across three AWS regions. Most services retrieve configuration information and reference data directly from PostgreSQL. During traffic spikes, the database becomes a bottleneck, even though most of the queried data changes infrequently.\n\nI would like to introduce a distributed caching layer to reduce database load while keeping the architecture relatively simple.\n\nRequirements:\n- Cache entries should automatically expire after configurable periods.\n- Services should be able to invalidate cached data immediately after updates.\n- The cache should survive individual node failures.\n- We should minimize the probability of stale data being returned.\n- The solution should work across multiple AWS regions.\n- Operational complexity should remain reasonable.\n\nPlease generate a feature design document including functional requirements, non-functional requirements, architecture alternatives, recommended solution, conceptual data model, APIs, failure scenarios, and tradeoff analysis."
+        },
+        {
+            "id": "FEATURE-002",
+            "primaryCategory": "Networking",
+            "categories": [
+                "Networking",
+                "Network Protocol",
+                "Wireless Communications",
+                "Distributed System",
+                "Performance/Scalability",
+                "Reliability/Fault Tolerance"
+            ],
+            "difficulty": "Hard",
+            "prompt": "We are building a mesh networking platform where drones relay internet traffic between one another to extend internet coverage into areas without traditional infrastructure.\n\nEach drone may move independently, links can appear or disappear at any time, and bandwidth varies significantly depending on weather, distance, and antenna orientation.\n\nThe routing subsystem should automatically discover neighboring drones, estimate link quality, support multiple simultaneous paths, recover quickly from topology changes, minimize routing overhead, and scale to approximately 5,000 drones.\n\nGenerate a complete feature design document comparing at least three routing approaches, explaining the advantages and disadvantages of each, and recommending the best overall architecture."
+        },
+        {
+            "id": "FEATURE-003",
+            "primaryCategory": "AI/ML Feature",
+            "categories": [
+                "AI/ML Feature",
+                "LLM/Generative AI",
+                "Software Feature",
+                "Search/Retrieval",
+                "Security",
+                "Performance/Scalability"
+            ],
+            "difficulty": "Medium",
+            "prompt": "Our IDE currently allows developers to chat with an LLM about their code. We would like to introduce a new feature that automatically performs code reviews whenever a pull request is created.\n\nThe review should detect security vulnerabilities, performance problems, concurrency issues, API misuse, coding standard violations, and missing tests.\n\nConstraints:\n- Responses should normally complete within 30 seconds.\n- The system must support repositories containing several million lines of code.\n- Users should be able to approve or dismiss recommendations.\n- Every recommendation should include an explanation and supporting evidence.\n\nGenerate a complete feature design document."
+        },
+        {
+            "id": "FEATURE-004",
+            "primaryCategory": "Software System",
+            "categories": [
+                "Software System",
+                "Database/Data Storage",
+                "Manufacturing/Test",
+                "System Integration",
+                "Hardware/Software Integration"
+            ],
+            "difficulty": "Medium",
+            "prompt": "Our manufacturing organization builds several hardware products consisting of thousands of components sourced from multiple suppliers.\n\nWe need a subsystem capable of tracking every hardware component from procurement through manufacturing and field deployment.\n\nRequirements:\n- Track serial numbers.\n- Track PCB revisions.\n- Associate firmware versions with hardware revisions.\n- Track supplier batches.\n- Support recalls.\n- Generate manufacturing history reports.\n- Integrate with our ERP system.\n\nPlease generate a complete feature design document."
+        },
+        {
+            "id": "FEATURE-005",
+            "primaryCategory": "DevOps/CI-CD",
+            "categories": [
+                "DevOps/CI-CD",
+                "Software Feature",
+                "Observability/Monitoring",
+                "Reliability/Fault Tolerance",
+                "Security"
+            ],
+            "difficulty": "Medium",
+            "prompt": "Our software currently requires manual approval at every deployment stage. We would like to build an autonomous deployment pipeline capable of automatically promoting builds through development, staging, and production based on configurable quality gates.\n\nThe system should evaluate unit tests, integration tests, security scans, performance benchmarks, and canary deployment metrics before promoting a release. If health metrics degrade, the deployment engine should automatically roll back.\n\nGenerate a feature design document."
+        },
+        {
+            "id": "FEATURE-006",
+            "primaryCategory": "IoT System",
+            "categories": [
+                "IoT System",
+                "Distributed System",
+                "Embedded Software",
+                "Observability/Monitoring",
+                "Security",
+                "Reliability/Fault Tolerance",
+                "Performance/Scalability"
+            ],
+            "difficulty": "Hard",
+            "prompt": "Our company manages approximately two million IoT devices deployed worldwide. We need a new remote device management platform capable of firmware deployment, health monitoring, configuration updates, and remote diagnostics.\n\nRequirements:\n- Devices may be offline for extended periods.\n- Firmware updates should be resumable.\n- Updates should be rolled out gradually.\n- Support automatic rollback.\n- All operations must be auditable.\n\nPlease generate a complete feature design document."
+        },
+        {
+            "id": "FEATURE-007",
+            "primaryCategory": "Software Feature",
+            "categories": [
+                "Software Feature",
+                "Distributed System",
+                "Real-Time System",
+                "Database/Data Storage",
+                "Reliability/Fault Tolerance",
+                "Frontend/UI"
+            ],
+            "difficulty": "Medium",
+            "prompt": "We currently have a cloud-based documentation platform where only one user may edit a document at a time. We want to introduce collaborative editing.\n\nRequirements:\n- Multiple simultaneous editors.\n- Near real-time synchronization.\n- Conflict detection and resolution.\n- Offline editing.\n- Version history.\n- Document comments.\n- Automatic recovery after client disconnects.\n\nGenerate a feature design document including architecture alternatives."
+        },
+        {
+            "id": "FEATURE-008",
+            "primaryCategory": "LLM/Generative AI",
+            "categories": [
+                "LLM/Generative AI",
+                "Search/Retrieval",
+                "AI/ML Feature",
+                "Data Pipeline",
+                "Database/Data Storage",
+                "Performance/Scalability",
+                "Security"
+            ],
+            "difficulty": "Hard",
+            "prompt": "We want to build an enterprise Retrieval-Augmented Generation platform capable of indexing millions of technical documents including books, design documents, source code, and standards.\n\nRequirements:\n- Hybrid text and vector search.\n- Semantic reranking.\n- Source citations.\n- Incremental indexing.\n- Access control.\n- Support multiple embedding models.\n- Scale to billions of indexed chunks.\n\nGenerate a feature design document comparing multiple retrieval architectures."
+        },
+        {
+            "id": "FEATURE-009",
+            "primaryCategory": "Distributed System",
+            "categories": [
+                "Distributed System",
+                "Software System",
+                "Messaging/Eventing",
+                "Reliability/Fault Tolerance",
+                "Database/Data Storage",
+                "Real-Time System"
+            ],
+            "difficulty": "Hard",
+            "prompt": "Our organization needs a distributed workflow engine capable of executing business processes that may run for several weeks.\n\nThe engine should survive crashes, retries, duplicate messages, version upgrades, and regional failures while guaranteeing exactly-once logical execution.\n\nThe workflow language should support timers, parallel branches, compensation, retries, and human approval steps.\n\nGenerate a feature design document comparing different workflow execution models."
+        },
+        {
+            "id": "FEATURE-010",
+            "primaryCategory": "Observability/Monitoring",
+            "categories": [
+                "Observability/Monitoring",
+                "AI/ML Feature",
+                "Data Pipeline",
+                "Performance/Scalability",
+                "Reliability/Fault Tolerance"
+            ],
+            "difficulty": "Medium",
+            "prompt": "Our production platform currently collects metrics, logs, traces, and deployment history. We would like to introduce predictive monitoring capable of identifying incidents before customers notice them.\n\nThe system should correlate historical incidents, infrastructure metrics, application logs, and deployment events to identify abnormal behavior.\n\nPlease design the feature, compare multiple machine learning approaches, discuss tradeoffs, and describe how false positives should be handled."
+        }
+    ]
+}

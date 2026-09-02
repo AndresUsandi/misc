@@ -1,0 +1,330 @@
+{
+    "name": "Bookito Engineering Domain Taxonomy",
+    "version": "2.0",
+    "categories": [
+        {
+            "id": 1,
+            "name": "Software Feature",
+            "description": "General functionality or user-facing feature added to an existing software system.",
+            "example": "Add a real-time collaborative document editing tool with conflict resolution."
+        },
+        {
+            "id": 2,
+            "name": "Software System",
+            "description": "Standalone software application, centralized platform, or core enterprise service.",
+            "example": "Build a distributed background task execution engine with priority queues."
+        },
+        {
+            "id": 3,
+            "name": "Distributed System",
+            "description": "Multi-node systems involving coordination, consistency, replication, partitioning, and distributed state.",
+            "example": "Design a distributed key-value storage engine using the Raft consensus protocol."
+        },
+        {
+            "id": 4,
+            "name": "Backend/API",
+            "description": "Backend services, API gateways, business logic, service interfaces, and server-side functionality.",
+            "example": "Build a high-performance GraphQL schema federation gateway for microservices."
+        },
+        {
+            "id": 5,
+            "name": "Frontend/UI",
+            "description": "Web, desktop, or user-facing interfaces, component libraries, and frontend architecture.",
+            "example": "Implement a virtualized data grid component rendering 100,000 real-time rows smoothly."
+        },
+        {
+            "id": 6,
+            "name": "Mobile Application",
+            "description": "Mobile-specific architecture and features involving device hardware, offline synchronization, and mobile operating systems.",
+            "example": "Design a background location tracking service optimized for minimal battery drain."
+        },
+        {
+            "id": 7,
+            "name": "Database/Data Storage",
+            "description": "Database engines, persistence models, indexing, transactions, replication, and storage architectures.",
+            "example": "Build a multi-region database failover and replica promotion engine."
+        },
+        {
+            "id": 8,
+            "name": "Data Pipeline",
+            "description": "Streaming ingestion, ETL pipelines, event aggregation, batch transformation, and data movement.",
+            "example": "Build a real-time clickstream ingestion and aggregation pipeline using Apache Flink."
+        },
+        {
+            "id": 9,
+            "name": "Search/Retrieval",
+            "description": "Search engines, inverted indexing, information retrieval, ranking, semantic search, and document discovery.",
+            "example": "Design a hybrid BM25 and dense neural vector search retrieval service."
+        },
+        {
+            "id": 10,
+            "name": "Messaging/Eventing",
+            "description": "Message brokers, pub/sub systems, event buses, event streams, and asynchronous messaging topologies.",
+            "example": "Build a high-throughput distributed publish-subscribe message broker."
+        },
+        {
+            "id": 11,
+            "name": "Networking",
+            "description": "Network routing, overlay networks, software-defined perimeters, packet steering, and connectivity architecture.",
+            "example": "Design a dynamic path selection controller for software-defined WAN (SD-WAN)."
+        },
+        {
+            "id": 12,
+            "name": "Network Protocol",
+            "description": "Framing, transport layers, wire protocols, custom packet formats, and low-level communication protocols.",
+            "example": "Design a zero-copy packet serialization protocol for kernel bypass networking."
+        },
+        {
+            "id": 13,
+            "name": "Cloud Infrastructure",
+            "description": "Multi-region cloud topology, container orchestration, Kubernetes management, and cloud architecture.",
+            "example": "Design a multi-region cloud infrastructure capable of zero-downtime failover."
+        },
+        {
+            "id": 14,
+            "name": "Infrastructure/Platform",
+            "description": "Internal developer platforms, secrets management, service discovery, and shared organization platforms.",
+            "example": "Build an internal developer platform (IDP) with self-service environment provisioning."
+        },
+        {
+            "id": 15,
+            "name": "DevOps/CI-CD",
+            "description": "Build pipelines, continuous integration, automated canary deployment, and release engineering.",
+            "example": "Design an autonomous deployment pipeline with automated canary analysis and rollback."
+        },
+        {
+            "id": 16,
+            "name": "Observability/Monitoring",
+            "description": "Metrics collection, distributed tracing, log aggregation, alerting, and operational monitoring.",
+            "example": "Build a high-cardinality distributed metrics ingestion and alerting platform."
+        },
+        {
+            "id": 17,
+            "name": "Security/Auth",
+            "description": "Authentication, authorization, zero-trust mTLS, key management, token verification, and security boundaries.",
+            "example": "Design a zero-trust microservice mutual TLS (mTLS) certificate issuance authority."
+        },
+        {
+            "id": 18,
+            "name": "Machine Learning System",
+            "description": "ML training orchestration, feature stores, model serving, inference pipelines, and ML infrastructure.",
+            "example": "Build a distributed neural model training orchestration engine across multi-GPU clusters."
+        },
+        {
+            "id": 19,
+            "name": "LLM Application",
+            "description": "LLM inference, RAG assistants, multi-agent reasoning, semantic chunking, and generative AI tools.",
+            "example": "Design a retrieval-augmented generation (RAG) agent with hybrid vector ranking."
+        },
+        {
+            "id": 20,
+            "name": "Computer Vision Pipeline",
+            "description": "Real-time video processing, object detection, facial recognition, image segmentation, and visual quality inspection.",
+            "example": "Build a real-time edge object detection and tracking pipeline with TensorRT acceleration."
+        },
+        {
+            "id": 21,
+            "name": "NLP Pipeline",
+            "description": "Entity extraction, intent classification, sentiment analysis, document categorization, and text processing.",
+            "example": "Design a multi-lingual document categorization and entity extraction pipeline."
+        },
+        {
+            "id": 22,
+            "name": "Recommendation System",
+            "description": "Candidate retrieval, neural ranking, collaborative filtering, multi-armed bandits, and personalized feed generation.",
+            "example": "Build a two-tower neural candidate retrieval and ranking engine for personalized feeds."
+        },
+        {
+            "id": 23,
+            "name": "Autonomous Agent Architecture",
+            "description": "Task planning, tool invocation, long-term memory consolidation, and self-reflective agent execution loops.",
+            "example": "Design an autonomous task planning and tool-calling execution agent with replanning."
+        },
+        {
+            "id": 24,
+            "name": "Embedded System",
+            "description": "Firmware and software executing directly on resource-constrained microcontrollers and edge hardware.",
+            "example": "Build an ultra-low-power environmental sensor node firmware with deep-sleep scheduling."
+        },
+        {
+            "id": 25,
+            "name": "IoT System",
+            "description": "Fleet-scale device management, OTA firmware deployment, telemetry aggregation, and IoT edge gateways.",
+            "example": "Build a fleet-scale IoT device management and delta-OTA firmware update orchestrator."
+        },
+        {
+            "id": 26,
+            "name": "Robotics/Autonomous System",
+            "description": "Trajectory planning, obstacle avoidance, SLAM sensor fusion, and robotic actuator control.",
+            "example": "Design a real-time robot trajectory planner and obstacle avoidance controller."
+        },
+        {
+            "id": 27,
+            "name": "Sensor/Instrumentation System",
+            "description": "Multi-channel data acquisition, sensor signal conditioning, instrumentation amplifiers, and calibration.",
+            "example": "Design a precision 24-bit multi-channel data acquisition (DAQ) instrumentation unit."
+        },
+        {
+            "id": 28,
+            "name": "Power Electronics",
+            "description": "Switched-mode power supplies, DC/DC converters, inverters, gate drivers, and high-efficiency power conversion.",
+            "example": "Design a high-efficiency 48 V to 12 V DC/DC buck converter for airborne electronics."
+        },
+        {
+            "id": 29,
+            "name": "PCB Design",
+            "description": "Multi-layer PCB layout, high-speed routing, mixed-signal partitioning, stackup design, and board integration.",
+            "example": "Design a high-speed 12-layer PCB layout for multi-gigabit PCIe and DDR4 routing."
+        },
+        {
+            "id": 30,
+            "name": "FPGA/ASIC",
+            "description": "Digital logic design, Verilog/VHDL hardware modules, FPGA accelerators, and custom ASIC architectures.",
+            "example": "Design a pipelined hardware packet parsing and filtering engine implemented in Verilog."
+        },
+        {
+            "id": 31,
+            "name": "Thermal Management",
+            "description": "Liquid cooling loops, heat sinks, thermal interface materials, convection modeling, and thermal dissipation.",
+            "example": "Design an active liquid cooling thermal regulation loop for high-density GPU server chassis."
+        },
+        {
+            "id": 32,
+            "name": "RF/Microwave Design",
+            "description": "Low-noise amplifiers, RF power amplifiers, mixers, synthesizers, and high-frequency microwave circuits.",
+            "example": "Design a 5.8 GHz low-noise amplifier (LNA) with integrated input impedance matching."
+        },
+        {
+            "id": 33,
+            "name": "Antenna Design",
+            "description": "Phased array antennas, patch arrays, beamforming, impedance matching networks, and radiation optimization.",
+            "example": "Design a phased array beamforming antenna array for satellite communications."
+        },
+        {
+            "id": 34,
+            "name": "Signal Integrity",
+            "description": "High-speed transmission lines, SERDES eye-diagram analysis, jitter budgeting, and power distribution network (PDN) impedance.",
+            "example": "Perform differential pair routing and jitter budget analysis for 25 Gbps SERDES links."
+        },
+        {
+            "id": 35,
+            "name": "EMI/EMC/Noise Mitigation",
+            "description": "Electromagnetic compatibility, common-mode filtering, shielding enclosures, grounding, and emissions suppression.",
+            "example": "Design a common-mode choke and differential EMI filter stage for industrial motor drives."
+        },
+        {
+            "id": 36,
+            "name": "Hardware/Software Integration",
+            "description": "Hardware-in-the-loop testing, PCIe DMA kernel drivers, HAL layers, and hardware abstraction interfaces.",
+            "example": "Build a hardware-in-the-loop (HIL) automated test bench for flight controller validation."
+        },
+        {
+            "id": 37,
+            "name": "Microcontroller Firmware",
+            "description": "Bare-metal drivers, RTOS task management, peripheral drivers, and low-level MCU firmware architectures.",
+            "example": "Build a bare-metal interrupt-driven state machine for industrial valve actuation."
+        },
+        {
+            "id": 38,
+            "name": "Operating System Component",
+            "description": "Virtual memory page handlers, thread schedulers, IPC mechanisms, virtual file systems, and kernel drivers.",
+            "example": "Design a custom virtual memory page-fault handler and demand-paging subsystem."
+        },
+        {
+            "id": 39,
+            "name": "Storage Engine",
+            "description": "LSM-tree compaction, copy-on-write B-trees, NVMe commit logs, zero-copy caching, and disk storage architectures.",
+            "example": "Build a log-structured merge-tree (LSM) storage engine with tiered compaction strategies."
+        },
+        {
+            "id": 40,
+            "name": "High-Performance Computing",
+            "description": "MPI cluster computing, CUDA parallel reduction kernels, NUMA memory architectures, and SIMD vectorization.",
+            "example": "Implement an MPI-distributed parallel matrix multiplication engine with non-blocking transfers."
+        },
+        {
+            "id": 41,
+            "name": "Distributed Consensus",
+            "description": "Multi-Paxos state machines, Raft leader election, Byzantine fault tolerance, and causal broadcast ordering.",
+            "example": "Implement a Multi-Paxos replicated state machine with active leader leases and pipelining."
+        },
+        {
+            "id": 42,
+            "name": "Compiler/Runtime Engine",
+            "description": "JIT compilation tiers, generational garbage collectors, bytecode interpreters, and LLVM optimization passes.",
+            "example": "Build a just-in-time (JIT) compiler tier with SSA-based dead code elimination and inlining."
+        },
+        {
+            "id": 43,
+            "name": "Real-Time System",
+            "description": "Hard real-time schedulers, deterministic task execution, priority-inheritance mutexes, and low-jitter systems.",
+            "example": "Design a hard real-time avionics mission computer with guaranteed sub-millisecond jitter."
+        },
+        {
+            "id": 44,
+            "name": "Audio Signal Processing",
+            "description": "Acoustic echo cancellation, spatial 3D audio convolution, FIR filtering, and psychoacoustic DSP algorithms.",
+            "example": "Build a real-time multi-channel acoustic echo cancellation (AEC) DSP pipeline."
+        },
+        {
+            "id": 45,
+            "name": "Video Streaming/Encoding",
+            "description": "WebRTC live encoding, adaptive bitrate ladders, HLS/DASH packaging, and hardware transcode pipelines.",
+            "example": "Build a low-latency WebRTC live video encoding pipeline with dynamic bitrate scaling."
+        },
+        {
+            "id": 46,
+            "name": "AR/VR System",
+            "description": "6DoF optical head tracking, asynchronous timewarp compositing, spatial rendering, and foveated graphics.",
+            "example": "Design a six-degree-of-freedom (6DoF) optical head-tracking and pose prediction pipeline."
+        },
+        {
+            "id": 47,
+            "name": "Blockchain/Web3",
+            "description": "EVM execution engines, zero-knowledge rollup proof generation, cryptographic state validation, and peer consensus.",
+            "example": "Build an EVM-compatible smart contract execution virtual machine with gas accounting."
+        },
+        {
+            "id": 48,
+            "name": "Simulation Engine",
+            "description": "Physics collision detection BVH trees, rigid-body multi-body dynamics, discrete-event simulations, and fluid dynamics.",
+            "example": "Build a high-performance physics collision detection engine using bounding volume hierarchies (BVH)."
+        },
+        {
+            "id": 49,
+            "name": "Gaming Engine/Subsystem",
+            "description": "Entity Component Systems (ECS), client-side prediction netcode, LOD geometry streaming, and game runtime systems.",
+            "example": "Design an entity-component-system (ECS) architecture with cache-friendly contiguous memory layout."
+        },
+        {
+            "id": 50,
+            "name": "Safety-Critical System",
+            "description": "Dual-channel fail-operational voting controllers, ISO 26262 ASIL-D braking architectures, and SIL-3 safety systems.",
+            "example": "Design a dual-channel fail-operational voting controller for fly-by-wire flight control."
+        },
+        {
+            "id": 51,
+            "name": "Automotive Software",
+            "description": "AUTOSAR Adaptive platforms, CAN-FD / Automotive Ethernet gateways, ADAS emergency braking, and EV battery management.",
+            "example": "Build an AUTOSAR Classic adaptive platform gateway for CAN-FD and Automotive Ethernet."
+        },
+        {
+            "id": 52,
+            "name": "Avionics Software",
+            "description": "DO-178C Level A flight displays, ARINC 653 partition managers, FMS navigation, and dual-redundant flight control.",
+            "example": "Build a DO-178C Level A certified primary flight display (PFD) graphics rendering engine."
+        },
+        {
+            "id": 53,
+            "name": "Bioinformatics Pipeline",
+            "description": "Genomic sequence alignment, variant calling, RNA-seq normalization, and protein tertiary structure folding.",
+            "example": "Build a distributed genomic sequence alignment and variant calling pipeline using Burrows-Wheeler."
+        },
+        {
+            "id": 54,
+            "name": "Medical Device Software",
+            "description": "IEC 62304 Class C patient ventilation, CGM glucose prediction, ECG arrhythmia detection, and surgical robot controls.",
+            "example": "Design IEC 62304 Class C compliant patient-ventilator closed-loop pressure control software."
+        }
+    ]
+}
