@@ -1,0 +1,12 @@
+{
+    "batch_size": 4,
+    "accum_steps": 2,
+    "num_epochs": 1,
+    "learning_rate": 0.0005,
+    "max_length": 512,
+    "step_limit": 5,
+    "multi_gpu_strategy": "parallel-pipeline",
+    "even_layers": true,
+    "gpu_index": 1,
+    "single_gpu": false
+}

@@ -1,0 +1,11 @@
+{
+  "vocab_size": 49152,
+  "context_length": 512,
+  "emb_dim": 512,
+  "n_layers": 8,
+  "n_heads": 8,
+  "drop_rate": 0.0,
+  "qkv_bias": false,
+  "tie_embeddings": true,
+  "tokenizer": "HuggingFaceTB/SmolLM2-135M"
+}

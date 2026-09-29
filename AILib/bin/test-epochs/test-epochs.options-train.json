@@ -1,0 +1,9 @@
+{
+    "batch_size": 4,
+    "accum_steps": 1,
+    "num_epochs": 2,
+    "learning_rate": 0.0005,
+    "resume": true,
+    "eval_freq": 1,
+    "single_gpu": true
+}

@@ -1,0 +1,32 @@
+# ---------------------------------------------------------------------------------------------------------------
+# Machine setup (verified on the reference Alienware Aurora R11, 2x RTX 5070 Ti, Windows 11 build 26200).
+# Install these manually, in this order, then run:  pip install -r requirements.txt
+#   1. NVIDIA GeForce driver 610.47 (any driver >= 580 works: the CUDA 13.0 runtime below needs that or newer).
+#   2. Python 3.12.10 (64-bit) from python.org. Packages go into the default global environment (no venv).
+#   3. Git 2.55 or newer.
+# NOT needed, do not install to "match" this machine: CUDA Toolkit, cuDNN, Visual Studio / MSVC.
+#   - torch==2.14.0+cu130 ships its own CUDA 13.0 runtime (cudart, cuBLAS, NVRTC, nvJitLink) and cuDNN 9.24.0 inside
+#     torch\lib and loads them from there even when a system CUDA Toolkit is on PATH (verified with the DLL paths of a
+#     running process). This machine happens to have CUDA Toolkit 13.2 installed; the training never touches it.
+#   - triton-windows bundles ptxas, cuda.h and a TinyCC compiler, so torch.compile on the GPU needs no MSVC
+#     (it would only pick MSVC when launched from a Visual Studio developer shell).
+# Performance-critical pins: torch 2.14.0+cu130 (cuDNN 9.24 attention kernels), triton-windows 3.8.0.post28,
+#   torchao 0.18.0 (--precision fp8). Keep all three exact.
+# The bin/<model>/ folder (model-params, options JSONs, data, checkpoints) is git-ignored: copy it over manually.
+# ---------------------------------------------------------------------------------------------------------------
+--extra-index-url https://download.pytorch.org/whl/cu130
+torch==2.14.0+cu130
+triton-windows==3.8.0.post28
+torchao==0.18.0
+tiktoken>=0.7.0
+datasets>=2.18.0
+huggingface_hub>=0.20.0
+pyarrow>=15.0.0
+symspellpy>=6.7.0
+matplotlib>=3.7.0
+pandas>=2.0.0
+tokenizers>=0.19.0
+tqdm>=4.66.0
+requests>=2.31.0
+duckdb>=1.0.0
+fastparquet>=2024.0.0

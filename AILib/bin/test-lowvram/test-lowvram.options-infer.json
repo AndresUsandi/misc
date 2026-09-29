@@ -1,0 +1,7 @@
+{
+    "temperature": 0.7,
+    "top_k": 50,
+    "top_p": 0.9,
+    "single_gpu": true,
+    "gpu_index": 1
+}

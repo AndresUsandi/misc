@@ -1,0 +1,14 @@
+bin/*
+!bin/*/
+bin/*/*
+!bin/*/*model-params*.json
+!bin/*/*options-*.json
+!bin/*/*.cmd
+!bin/test-*/
+bin/test-*/*.chk.*
+bin/test-*/*.chk
+bin/test-*/*.pth
+bin/test-*/log.txt
+bin/test-*/steps_cache.json
+bin/test-*/*.pdf
+!bin/calculate_params.py

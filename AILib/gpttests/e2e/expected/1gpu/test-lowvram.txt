@@ -1,0 +1,156 @@
+[Options] Overrode 10 parameter(s) from 'test-lowvram.options-train.json': batch_size=4, accum_steps=2, num_epochs=1, learning_rate=0.0005, resume=False, step_limit=5, eval_freq=2, single_gpu=True, activation_checkpointing=True, recompute_lmhead=True
+=================================================================
+      FULLY-OPTIMIZED GPT TRAINING
+=================================================================
+Model: test-lowvram
+Device: cuda:0 | Active GPUs: 1 | Precision: FP16 | Model Dtype: torch.float16 | AMP: Enabled (torch.float16)
+Model: test-lowvram (8 layers, 512 emb, 8 heads)
+Batch Size: 4 (Effective: 8) | Accum Steps: 2
+Epochs: 1 | AdamW LR: 0.0005 | Muon LR: 0.001 | Warmup Steps: 100
+Vocab: 50,304 | Context: 512 | Layers: 8 | Dim: 512 | Heads: 8
+Training Data Path: bin\test-lowvram\data\Training
+Total training files found: 1
+  [1/1] bin\test-lowvram\data\Training\TheVeredict\the-verdict.txt
+=================================================================
+[Low-VRAM Optimization] Activation / Gradient Checkpointing enabled (cuts activation VRAM by ~80%).
+torch.compile skipped (default: disabled, use --compile to enable)
+Optimizer Configured: 1 ([Single Fused AdamW for all layers, default])
+[Notice] Resume disabled. Starting TRAIN from initialized weights.
+[Training Plan] Resumed from step 0. Training for 5 steps -> Target step: 5.
+[Checkpointing] Periodic saves enabled every 1000 steps -> 'test-lowvram'.
+[Steps Cache] Loaded partial (0/1 files known) steps cache for 'test-lowvram' (1 steps/epoch, 1 total global steps).
+==================================================
+Starting Epoch 1/1
+==================================================
+Tokenizing file 1 of 1: bin\test-lowvram\data\Training\TheVeredict\the-verdict.txt
+Ep 1/1 (Step 000002/000002 - 100% | Global 000002/000002 - 100%): Train 10.350, Val 10.433 | PPL: 33968.45 | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000015 | VRAM: 0.5G/0.8G
+Sample: <text>
+GPU 0 (NVIDIA GeForce RTX 2080 SUPER): 0.5 GB Alloc / 0.9 GB Res
+File processed: * | Total elapsed: * | ETA for remaining files: *
+[gptio] Saved TRAIN checkpoint (Step 2) to: bin\test-lowvram\test-lowvram.trn.chk
+[gptio] Saved TRAIN checkpoint (Step 2) to: bin\test-lowvram\test-lowvram.trn.chk
+[modelio] Successfully saved clean final model to: bin\test-lowvram\test-lowvram.pth
+============================================================
+               TRAINING COMPLETED
+============================================================
+[Plot] Saved pretraining loss curves to 'bin\test-lowvram\test-lowvram-loss-plot-train.pdf'.
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 4,096 (ideal: 1B-6.7B)
+  Final Losses       : Train 10.350 (ideal: 3.90-4.05) | Val 10.433 (ideal: 3.95-4.10)
+  Val - Train Gap    : +0.083 (UNDERFITTING!)
+  Perplexity         : 33968.45 (ideal: 51.7-60.1)
+  Model              : test-lowvram (~51.2M params)
+============================================================
+[Options] Overrode 12 parameter(s) from 'test-lowvram.options-tune.json': batch_size=2, accum_steps=4, num_epochs=1, learning_rate=0.0005, max_length=256, step_limit=5, single_gpu=True, activation_checkpointing=True, recompute_lmhead=True, freeze_embeddings=True, chunk_size=128, eval_freq=2
+[Memory] cuda:0: allocator cache capped at 7.60 GiB of 8.00 GiB (* GiB already in use as seen by CUDA).
+=================================================================
+      FULLY-OPTIMIZED GPT INSTRUCTION FINE-TUNING (SFT)
+=================================================================
+Device: cuda:0 | Active GPUs: 1 | Precision: FP16 | Model Dtype: torch.float16 | AMP: Enabled (torch.float16)
+Model: test-lowvram (8 layers, 512 emb, 8 heads)
+Batch Size: 2 (Accum Steps: 4) | Epochs: 1 | Peak LR: 0.000500
+Instruction Data: bin\test-lowvram\data\Tuning (1 file(s))
+  [1/1] combined_1.txt
+=================================================================
+[Low-VRAM Optimization] Activation / Gradient Checkpointing enabled (cuts activation VRAM by ~80%).
+[Low-VRAM Optimization] Token and position embeddings frozen (requires_grad = False).
+[Optimizer] AdamW with fp16 stochastic rounding (fp32 math, bf16 moments) for small fine-tuning learning rates.
+[Resume] Loaded base pre-trained weights for TUNE. Starting TUNE from Step 0.
+[Validation Buffer] Built fixed stratified SFT validation buffer: 16 batches across 1 file(s).
+[Streaming Loader] Initialized streaming instruction loader across 1 file(s): ~62 train steps, ~16 val steps.
+[Training Plan] Target epochs: 1 | Steps per epoch: 62 (Optimizer updates: 16) | Planned updates: 16
+[Training Plan] Resumed from step 0. Training for 5 steps -> Target step: 5.
+[Gradient Accumulation] Accumulating gradients over 4 sub-steps before optimizer update.
+[Checkpointing] Model target: 'test-lowvram'
+[Precision] Dynamic loss scaling enabled so small fp16 gradients don't round to zero in the backward pass.
+[Initial State Evaluation]
+  Initial Train Loss : 10.6371
+  Initial Val Loss   : 10.5496 (Seq: 10.4570) (PPL: Resp 38160.52 | Seq 34786.76) (Eval took *)
+======================================================================
+Starting Fine-Tuning Epoch 1/1
+======================================================================
+Ep 1/1 (Step 000008/000062 - 13% | Global 000002/000016 - 12%): Train 10.206, Val 9.917 (Seq 9.999) | PPL: 20264.17 (Seq 21995.76) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000481 | VRAM: 0.2G/0.5G
+Ep 1/1 (Step 000016/000062 - 26% | Global 000004/000016 - 25%): Train 9.545, Val 9.761 (Seq 9.792) | PPL: 17341.89 (Seq 17888.78) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000427 | VRAM: 0.2G/0.5G
+Ep 1/1 (Step 000020/000062 - 32% | Global 000005/000016 - 31%): Train 9.350, Val 9.713 (Seq 9.788) | PPL: 16533.38 (Seq 17823.75) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000389 | VRAM: 0.2G/0.5G
+[gptio] Saved TUNE checkpoint (Step 5) to: bin\test-lowvram\test-lowvram.sft.chk
+[Step Limit Reached] Reached target step 5. Pausing fine-tuning cleanly.
+============================================================
+               FINE-TUNING COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 8,701 (ideal: 200M-1B)
+  Final Losses       : Train 9.350 | Val 9.713 (Seq: 9.788, ideal: 2.25-2.55)
+  Val - Train Gap    : +0.363 (UNDERFITTING!)
+  Perplexity         : Resp 16533.38 | Seq 17823.75 (ideal: 9.5-12.8)
+  Model              : test-lowvram (~51.2M params)
+============================================================
+[Plot] Saved fine-tuning loss curves to 'bin\test-lowvram\test-lowvram-loss-plot-tune.pdf'.
+[Options] Overrode 11 parameter(s) from 'test-lowvram.options-optimize.json': batch_size=1, accum_steps=4, num_epochs=1, learning_rate=5e-06, beta=0.1, max_length=256, step_limit=5, single_gpu=True, activation_checkpointing=True, freeze_embeddings=True, eval_freq=2
+[Memory] cuda:0: allocator cache capped at 7.60 GiB of 8.00 GiB (* GiB already in use as seen by CUDA).
+=================================================================
+      GPT DIRECT PREFERENCE OPTIMIZATION (DPO)
+=================================================================
+Policy Device: cuda:0 | Ref Device: cuda:0 | Precision: FP16 | Model Dtype: torch.float16 | AMP: Enabled (torch.float16)
+Model: test-lowvram (8 layers, 512 emb, 8 heads)
+Batch Size: 1 (Accum Steps: 4) | Epochs: 1 | LR: 0.0000050 | Beta: 0.1
+Preference Data: bin\test-lowvram\data\Optimizing (1 file(s))
+  [1/1] preference_combined_1.json
+Base Model: test-lowvram
+=================================================================
+[Low-VRAM Optimization] Activation / Gradient Checkpointing enabled (cuts activation VRAM by ~80%).
+[Low-VRAM Optimization] Token and position embeddings frozen (requires_grad = False).
+[Reference Model] Initialized frozen reference model from SFT checkpoint (.sft.chk) on cuda:0.
+[Optimizer] AdamW with fp16 stochastic rounding (fp32 math, bf16 moments) for small fine-tuning learning rates.
+[Resume] Loaded base SFT weights for OPTIMIZE. Starting OPTIMIZE from Step 0.
+[Validation Buffer] Built fixed stratified DPO validation buffer: 32 batches across 1 file(s).
+[Streaming Loader] Initialized streaming preference loader across 1 file(s): ~343 train steps, ~32 val steps.
+[DPO Plan] Target epochs: 1 | Steps per epoch: 343 (Updates: 86) | Total updates: 86
+[DPO Plan] Resumed from step 0. Training for 5 steps -> Target step: 5.
+[Gradient Accumulation] Accumulating gradients over 4 sub-steps before optimizer update.
+[Checkpointing] Model target: 'test-lowvram'
+[Precision] Dynamic loss scaling enabled so small fp16 gradients don't round to zero in the backward pass.
+[Initial State Evaluation]
+  Initial Train Loss : 0.6931 | Margin: +0.0000 | Acc: 0.0%
+  Initial Val Loss   : 0.6931 | Margin: +0.0000 | Acc: 0.0% (Eval took *)
+======================================================================
+Starting DPO Optimization Epoch 1/1
+======================================================================
+Ep 1/1 (Step 000008/000343 - 2% | Global 000002/000086 - 2%): Train 0.693, Val 0.693 | Margin: Tr -0.003, Val +0.006 | Acc: Tr 66.7%, Val 100.0% | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.0000050 | VRAM: 0.3G/0.6G
+Ep 1/1 (Step 000016/000343 - 5% | Global 000004/000086 - 5%): Train 0.693, Val 0.693 | Margin: Tr +0.003, Val +0.007 | Acc: Tr 100.0%, Val 100.0% | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.0000050 | VRAM: 0.3G/0.6G
+Ep 1/1 (Step 000020/000343 - 6% | Global 000005/000086 - 6%): Train 0.693, Val 0.693 | Margin: Tr +0.007, Val +0.005 | Acc: Tr 100.0%, Val 100.0% | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.0000050 | VRAM: 0.3G/0.6G
+[gptio] Saved OPTIMIZE checkpoint (Step 5) to: bin\test-lowvram\test-lowvram.dpo.chk
+[Step Limit Reached] Reached target step 5. Pausing DPO optimization cleanly.
+----------------------------------------------------------------------
+[Sample Model Response @ Epoch 1]
+  Instruction : <|im_start|>user
+Evaluate the following phrase by transforming it into the spelling given.
+freind -
+  Preferred   : The spelling of the given phrase "freind" is incorrect, the correct spelling is "friend".
+  Model Output: <text>
+----------------------------------------------------------------------
+GPU 0 (NVIDIA GeForce RTX 2080 SUPER): 0.4 GB Alloc / 0.6 GB Res
+File processed: * | Total elapsed: * | ETA for remaining files: *
+============================================================
+               DPO OPTIMIZATION COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 3,790 (ideal: 25.6M-256.1M)
+  Final Losses       : Train 0.693 | Val 0.693
+  Val - Train Gap    : +0.000 (OK!)
+  Final Margins      : Train +0.007 | Val +0.005
+  Model              : test-lowvram (~51.2M params)
+============================================================
+[Plot] Saved DPO telemetry curves to 'bin\test-lowvram\test-lowvram-loss-plot-optimize.pdf'.
+[Options] Overrode 5 parameter(s) from 'test-lowvram.options-infer.json': temperature=0.7, top_k=50, top_p=0.9, single_gpu=True, gpu_index=1
+[SpellCheck] Autocorrect initialized (SymSpell dictionary-based cleanup active).
+============================================================
+           Interactive GPT Conversation Console
+============================================================
+Model Target    : test-lowvram
+Precision       : FP16 (dtype: torch.float16)
+Device          : cuda:0 (Available GPUs: 0)
+Temperature     : 0.7 | Top-K: 50 | Top-P: 0.9
+System Prompt   : You are a helpful and coherent AI assistant.
+============================================================
+[modelio] Successfully loaded model weights from: bin\test-lowvram\test-lowvram.pth
+⚡ [Performance] Response: * tok/s | Session Avg: * tok/s | Tokens: * in *

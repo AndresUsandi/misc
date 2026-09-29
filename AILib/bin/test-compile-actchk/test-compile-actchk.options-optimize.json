@@ -1,0 +1,12 @@
+{
+    "batch_size": 1,
+    "accum_steps": 4,
+    "num_epochs": 1,
+    "compile": true,
+    "activation_checkpointing": true,
+    "learning_rate": 5e-06,
+    "beta": 0.1,
+    "max_length": 512,
+    "step_limit": 5,
+    "single_gpu": true
+}

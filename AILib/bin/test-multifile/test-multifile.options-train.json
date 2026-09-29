@@ -1,0 +1,12 @@
+{
+    "batch_size": 2,
+    "accum_steps": 1,
+    "num_epochs": 1,
+    "learning_rate": 0.0005,
+    "resume": false,
+    "step_limit": 10,
+    "eval_freq": 2,
+    "train_ratio": 0.8,
+    "precompute_total_steps": true,
+    "single_gpu": true
+}

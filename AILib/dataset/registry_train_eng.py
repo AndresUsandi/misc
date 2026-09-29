@@ -1,0 +1,153 @@
+import sys
+from pathlib import Path
+from typing import Any, Dict
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from dataset.cleanup import clean_standard_entry
+
+
+REGISTRY_TRAIN_ENG: Dict[str, Dict[str, Any]] = {
+    # --------------------------------------------------------------------------
+    # 6. Engineering Textbooks, Patents & Technical Foundations (Pretraining)
+    # --------------------------------------------------------------------------
+    "libretexts_engineering": {
+        "category": "Engineering",
+        "sub_category": "Engineering - Multiple",
+        "hf_path": "princeton-nlp/TextbookChapters",
+        "split": "train",
+        "extracted_size": "~2.4 GB",
+        "item_count": "~600M tokens",
+        "description": "LibreTexts academic textbook chapters across Mechanical, Civil, Electrical, Materials, and Chemical Engineering.",
+        "cleaner": clean_standard_entry,
+    },
+    "mit_ocw_engineering": {
+        "category": "Engineering",
+        "sub_category": "Engineering - Multiple",
+        "hf_path": "olimiemma/MIT-OCW-Transcripts",
+        "split": "train",
+        "extracted_size": "~450 MB",
+        "item_count": "~110M tokens",
+        "description": "MIT OpenCourseWare lecture transcripts covering EECS, Mechanical, Aerospace, and Nuclear engineering courses.",
+        "cleaner": clean_standard_entry,
+    },
+    "pes2o_engineering": {
+        "category": "Engineering",
+        "sub_category": "Engineering - Multiple",
+        "hf_path": "allenai/peS2o",
+        "split": "train",
+        "extracted_size": "~35 GB",
+        "item_count": "~8.5B tokens",
+        "description": "Semantic Scholar open corpus of peer-reviewed engineering papers across IEEE, ACM, Springer, and Elsevier.",
+        "cleaner": clean_standard_entry,
+    },
+    "big_patent_all": {
+        "category": "Engineering",
+        "sub_category": "Engineering - Multiple",
+        "hf_path": "big_patent",
+        "hf_name": "all",
+        "split": "train",
+        "extracted_size": "~18 GB",
+        "item_count": "~3.5B tokens",
+        "description": "1.2 million complete USPTO engineering patent descriptions spanning all technical classifications.",
+        "cleaner": clean_standard_entry,
+    },
+    "big_patent_mechanical": {
+        "category": "Engineering",
+        "sub_category": "Mechanical Engineering",
+        "hf_path": "big_patent",
+        "hf_name": "f",
+        "split": "train",
+        "extracted_size": "~3.2 GB",
+        "item_count": "~800M tokens",
+        "description": "USPTO engineering patents in mechanical engineering, engines, thermodynamics, pumps, and fluid machinery.",
+        "cleaner": clean_standard_entry,
+    },
+    "big_patent_electrical": {
+        "category": "Engineering",
+        "sub_category": "Electrical Engineering",
+        "hf_path": "big_patent",
+        "hf_name": "h",
+        "split": "train",
+        "extracted_size": "~4.1 GB",
+        "item_count": "~1.0B tokens",
+        "description": "USPTO engineering patents in electricity, semiconductor devices, electronic circuits, and power systems.",
+        "cleaner": clean_standard_entry,
+    },
+    "big_patent_civil": {
+        "category": "Engineering",
+        "sub_category": "Civil Engineering",
+        "hf_path": "big_patent",
+        "hf_name": "e",
+        "split": "train",
+        "extracted_size": "~1.5 GB",
+        "item_count": "~380M tokens",
+        "description": "USPTO engineering patents in fixed constructions, structural engineering, foundation mechanics, and earth drilling.",
+        "cleaner": clean_standard_entry,
+    },
+    "big_patent_chemical": {
+        "category": "Engineering",
+        "sub_category": "Chemical Engineering",
+        "hf_path": "big_patent",
+        "hf_name": "c",
+        "split": "train",
+        "extracted_size": "~3.8 GB",
+        "item_count": "~950M tokens",
+        "description": "USPTO engineering patents in chemical process engineering, metallurgy, polymer synthesis, and petroleum refining.",
+        "cleaner": clean_standard_entry,
+    },
+    "big_patent_transport_marine": {
+        "category": "Engineering",
+        "sub_category": "Marine / Naval Engineering",
+        "hf_path": "big_patent",
+        "hf_name": "b",
+        "split": "train",
+        "extracted_size": "~3.5 GB",
+        "item_count": "~900M tokens",
+        "description": "USPTO engineering patents in marine vessels, naval propulsion, transport, aerospace structures, and manufacturing.",
+        "cleaner": clean_standard_entry,
+    },
+    "nuclear_fermi_docs": {
+        "category": "Engineering",
+        "sub_category": "Nuclear Engineering",
+        "hf_path": "atomic-canyon/FermiBench",
+        "split": "train",
+        "extracted_size": "~1.8 GB",
+        "item_count": "~450M tokens",
+        "description": "US Nuclear Regulatory Commission technical documents, reactor physics analyses, and nuclear engineering manuals.",
+        "cleaner": clean_standard_entry,
+    },
+    "verilog_hardware_corpus": {
+        "category": "Engineering",
+        "sub_category": "Computer Engineering",
+        "hf_path": "NOKHAB-Lab/LLM_4_Verilog",
+        "split": "train",
+        "extracted_size": "~120 MB",
+        "item_count": "~30M tokens",
+        "description": "Synthesizable Verilog RTL source code, microprocessor cores, bus bridges, and hardware architecture designs.",
+        "cleaner": clean_standard_entry,
+    },
+    "aerospace_fineweb": {
+        "category": "Engineering",
+        "sub_category": "Aerospace Engineering",
+        "hf_path": "m-a-p/FineFineWeb",
+        "hf_name": "aerospace",
+        "split": "train",
+        "extracted_size": "~650 MB",
+        "item_count": "~160M tokens",
+        "description": "Curated aerospace, astronautical, and aeronautical engineering technical literature for pretraining.",
+        "cleaner": clean_standard_entry,
+    },
+    "chempile_education": {
+        "category": "Engineering",
+        "sub_category": "Chemical Engineering",
+        "hf_path": "jablonkagroup/chempile-education",
+        "split": "train",
+        "extracted_size": "~400 MB",
+        "item_count": "~100M tokens",
+        "description": "Chemical engineering and physical chemistry open course texts, lecture transcripts, and thermodynamics manuals.",
+        "cleaner": clean_standard_entry,
+    },
+}

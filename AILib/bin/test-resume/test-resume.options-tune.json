@@ -1,0 +1,11 @@
+{
+    "batch_size": 4,
+    "accum_steps": 1,
+    "num_epochs": 1,
+    "learning_rate": 0.0005,
+    "max_length": 128,
+    "step_limit": 3,
+    "single_gpu": true,
+    "save_interval": 2,
+    "eval_freq": 2
+}

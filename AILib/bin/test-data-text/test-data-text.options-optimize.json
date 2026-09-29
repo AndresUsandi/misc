@@ -1,0 +1,15 @@
+{
+    "batch_size": 2,
+    "accum_steps": 2,
+    "num_epochs": 1,
+    "max_length": 1024,
+    "beta": 0.2,
+    "train_ratio": 0.8,
+    "test_ratio": 0.1,
+    "verbose": true,
+    "eval_freq": 2,
+    "learning_rate": 5e-06,
+    "resume": false,
+    "step_limit": 5,
+    "single_gpu": true
+}

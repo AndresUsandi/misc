@@ -1,0 +1,8 @@
+{
+    "temperature": 0.8,
+    "top_k": 40,
+    "top_p": 0.95,
+    "max_new_tokens": 64,
+    "single_gpu": true,
+    "gpu_index": 1
+}

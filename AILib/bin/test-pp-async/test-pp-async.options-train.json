@@ -1,0 +1,16 @@
+{
+    "batch_size": 4,
+    "accum_steps": 2,
+    "num_epochs": 1,
+    "learning_rate": 0.0005,
+    "resume": false,
+    "step_limit": 5,
+    "eval_freq": 2,
+    "multi_gpu_strategy": "parallel-pipeline",
+    "multi_stage_micro_batching": 0,
+    "even_layers": false,
+    "use_1f1b": false,
+    "async_pcie": true,
+    "gpu_index": 1,
+    "single_gpu": false
+}

@@ -1,0 +1,12 @@
+{
+    "batch_size": 4,
+    "accum_steps": 2,
+    "num_epochs": 1,
+    "learning_rate": 0.0005,
+    "resume": false,
+    "step_limit": 5,
+    "eval_freq": 2,
+    "single_gpu": true,
+    "device": "cuda",
+    "gpu_index": 0
+}
