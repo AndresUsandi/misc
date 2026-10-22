@@ -1,0 +1,1 @@
+A/B test of andres-350M-2 with one change: recompute_lmhead: true in every stage (the LM head projection of each loss chunk is recomputed in backward). Compare its checkpoints, loss curves, VRAM and tok/sec against andres-350M-2.

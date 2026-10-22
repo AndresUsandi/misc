@@ -1,0 +1,1 @@
+A/B test of andres-350M-2 with one change: use_torchao_adamw8bit: true in every stage (AdamW moments stored block-quantized to 8 bits). Compare its checkpoints, loss curves, VRAM and tok/sec against andres-350M-2.

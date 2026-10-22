@@ -1,0 +1,10 @@
+{
+    "adaptive_temp": true,
+    "temp_min": 0.15,
+    "temp_max": 0.60,
+    "min_p": 0.06,
+    "top_p": 0.90,
+    "top_k": 40,
+    "repetition_penalty": 1.05,
+    "system_prompt": "Answer in complete sentences."
+}

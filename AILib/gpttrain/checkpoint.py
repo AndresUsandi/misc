@@ -13,7 +13,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from argsutil import TrainingArgs
-from gptio.pathutil import STAGE_TRAIN, STAGE_TUNE, STAGE_OPTIMIZE
+from gptio.pathutil import STAGE_TRAIN, STAGE_TUNE, STAGE_OPTIMIZE, CHECKPOINT_TRN_EXT, CHECKPOINT_SFT_EXT, TARGET_MODEL, resolve_path
 from gptio.checkpoint import load_checkpoint, restore_training_state
 from gptio.modelio import load_model_weights
 from gptmodel.MultiGpuGptModelDP import MultiGpuGptModelDP
@@ -90,7 +90,7 @@ def resume_stage_checkpoint(
                 if trn_ckpt is not None:
                     restore_training_state(target_model, trn_ckpt, device=device)
                     del trn_ckpt
-                    print(f"[Resume] No active SFT checkpoint found for '{args.model_name}'. Loaded base pre-trained checkpoint weights (.trn.chk). Starting Fine-Tuning from Step 0.")
+                    print(f"[Resume] No active SFT checkpoint found for '{args.model_name}'. Loaded base pre-trained checkpoint weights ({CHECKPOINT_TRN_EXT}). Starting Fine-Tuning from Step 0.")
                 else:
                     loaded_pth = load_model_weights(target_model, args, device=device)
                     if loaded_pth:
@@ -102,13 +102,17 @@ def resume_stage_checkpoint(
                 if sft_ckpt is not None:
                     restore_training_state(target_model, sft_ckpt, device=device)
                     del sft_ckpt
-                    print(f"[Resume] No active DPO checkpoint found for '{args.model_name}'. Loaded base SFT checkpoint weights (.sft.chk). Starting DPO from Step 0.")
+                    print(f"[Resume] No active DPO checkpoint found for '{args.model_name}'. Loaded base SFT checkpoint weights ({CHECKPOINT_SFT_EXT}). Starting DPO from Step 0.")
                 else:
                     loaded_pth = load_model_weights(target_model, args, device=device)
                     if loaded_pth:
                         print(f"[Resume] Loaded base model weights (.pth) for policy model. Starting DPO from Step 0.")
                     else:
                         print(f"[Resume] Starting DPO from initialized weights.")
+            elif resolve_path(args.model_name, target=TARGET_MODEL, models_dir=args.models_base_dir).exists():  # continued pretraining: a base .pth in the model folder
+                load_model_weights(target_model, args, device=device)
+                getattr(target_model, "adopt_primary_weights", lambda: None)()  # data-parallel replicas take the loaded weights before the first step
+                print(f"[Resume] No pre-training checkpoint found for '{args.model_name}'. Loaded base model weights (.pth): continued pretraining from Step 0.")
             else:
                 print(f"[Resume] No existing checkpoint found for '{args.model_name}' (TRAIN). Starting from scratch.")
     else:
@@ -118,7 +122,7 @@ def resume_stage_checkpoint(
             if trn_ckpt is not None:
                 restore_training_state(target_model, trn_ckpt, device=device)
                 del trn_ckpt
-                print(f"[Fine-Tuning] Resume disabled. Initialized model from base pre-trained checkpoint (.trn.chk). Starting Fine-Tuning from Step 0.")
+                print(f"[Fine-Tuning] Resume disabled. Initialized model from base pre-trained checkpoint ({CHECKPOINT_TRN_EXT}). Starting Fine-Tuning from Step 0.")
             else:
                 loaded_pth = load_model_weights(target_model, args, device=device)
                 if loaded_pth:
@@ -130,13 +134,17 @@ def resume_stage_checkpoint(
             if sft_ckpt is not None:
                 restore_training_state(target_model, sft_ckpt, device=device)
                 del sft_ckpt
-                print(f"[Policy Model] Resume disabled. Initialized policy weights from base SFT checkpoint (.sft.chk).")
+                print(f"[Policy Model] Resume disabled. Initialized policy weights from base SFT checkpoint ({CHECKPOINT_SFT_EXT}).")
             else:
                 loaded_pth = load_model_weights(target_model, args, device=device)
                 if loaded_pth:
                     print(f"[Policy Model] Resume disabled. Initialized policy weights from base model (.pth).")
                 else:
                     print(f"[Notice] Resume disabled. Starting {stage.upper()} from initialized weights.")
+        elif resolve_path(args.model_name, target=TARGET_MODEL, models_dir=args.models_base_dir).exists():
+            load_model_weights(target_model, args, device=device)
+            getattr(target_model, "adopt_primary_weights", lambda: None)()
+            print(f"[Notice] Resume disabled. Initialized model from base model weights (.pth): continued pretraining from Step 0.")
         else:
             print(f"[Notice] Resume disabled. Starting {stage.upper()} from initialized weights.")
 
@@ -149,9 +157,9 @@ def resume_stage_checkpoint(
             print(f"To {action_desc} for additional epochs, specify a higher --num_epochs (e.g. --num_epochs {initial_epoch + 1}).\n")
             return None
 
-    # Replicas must start from the restored weights (checkpoints load into the primary only)
+    # Replicas (and ZeRO-1 shards) must start from the restored weights (checkpoints load into the primary only)
     if isinstance(target_model, MultiGpuGptModelDP):
-        target_model.sync_weights()
+        target_model.adopt_primary_weights()
 
     return {
         "tokens_seen_init": tokens_seen_init,

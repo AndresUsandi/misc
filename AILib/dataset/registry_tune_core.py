@@ -6,13 +6,64 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from dataset.cleanup import clean_chatml_entry
+from dataset.cleanup import clean_chatml_entry, clean_oasst_tree_entry
 
 
 REGISTRY_TUNE_CORE: Dict[str, Dict[str, Any]] = {
     # --------------------------------------------------------------------------
     # 1. ChatML Multi-Turn Dialogue & Single-Turn Instructions
     # --------------------------------------------------------------------------
+    "smol_smoltalk": {
+        "category": "ChatML Multi-Turn Dialogue & Single-Turn Instructions",
+        "sub_category": "",
+        "hf_path": "HuggingFaceTB/smol-smoltalk",
+        "split": "train",
+        "extracted_size": "~920 MB",
+        "item_count": "~230M tokens (460K conversations)",
+        "description": "SmolTalk subset Hugging Face used to fine-tune SmolLM2-135M/360M-Instruct: everyday conversations, rewriting, summarization, constrained instructions, without the math/code a small model cannot learn.",
+        "cleaner": clean_chatml_entry,
+    },
+    "smoltalk_magpie_ultra": {
+        "category": "ChatML Multi-Turn Dialogue & Single-Turn Instructions",
+        "sub_category": "Multi-Turn",
+        "hf_path": "HuggingFaceTB/smoltalk",
+        "hf_name": "smol-magpie-ultra",
+        "split": "train",
+        "extracted_size": "~1.4 GB",
+        "item_count": "~350M tokens (431K conversations, ~800 tokens each)",
+        "description": "The long-form backbone of SmolTalk (SmolLM2-1.7B recipe): multi-turn conversations with detailed, well-structured answers across general knowledge, creative writing, editing, brainstorming and advice; the part of SmolTalk that smol-smoltalk leaves out. Cap with --limit (e.g. 200000) to control its share.",
+        "cleaner": clean_chatml_entry,
+    },
+    "opus_writingprompts": {
+        "category": "ChatML Multi-Turn Dialogue & Single-Turn Instructions",
+        "sub_category": "Creative Writing",
+        "hf_path": "Gryphe/Opus-WritingPrompts",
+        "split": "train",
+        "extracted_size": "~35 MB",
+        "item_count": "~8M tokens (6,022 stories)",
+        "description": "WritingPrompts answered by Claude 3 Opus: 6K long, modern-register short stories as user prompt / assistant story conversations; teaches the shape of a complete multi-paragraph story in reply to a request.",
+        "cleaner": clean_chatml_entry,
+    },
+    "everyday_conversations": {
+        "category": "ChatML Multi-Turn Dialogue & Single-Turn Instructions",
+        "sub_category": "Multi-Turn",
+        "hf_path": "HuggingFaceTB/everyday-conversations-llama3.1-2k",
+        "split": "train_sft",
+        "extracted_size": "~2 MB",
+        "item_count": "~0.5M tokens (2,260 conversations)",
+        "description": "Short casual multi-turn chats (greetings, small talk, everyday topics) written for small chat models.",
+        "cleaner": clean_chatml_entry,
+    },
+    "oasst2": {
+        "category": "ChatML Multi-Turn Dialogue & Single-Turn Instructions",
+        "sub_category": "Multi-Turn",
+        "hf_path": "OpenAssistant/oasst2",
+        "split": "train",
+        "extracted_size": "~25 MB (English threads)",
+        "item_count": "~5M tokens (~8K threads)",
+        "description": "OpenAssistant 2 human-written conversation trees, assembled into English best-ranked threads (see cleanup.OasstTreeCleaner).",
+        "cleaner": clean_oasst_tree_entry,
+    },
     "openhermes": {
         "category": "ChatML Multi-Turn Dialogue & Single-Turn Instructions",
         "sub_category": "",

@@ -6,5 +6,6 @@
     "max_length": 128,
     "step_limit": 3,
     "device": "cpu",
-    "use_muon": true
+    "use_muon": true,
+    "precompute_total_steps": true
 }

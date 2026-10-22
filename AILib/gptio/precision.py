@@ -84,19 +84,26 @@ def resolve_precision_and_amp(
 ) -> Tuple[torch.dtype, bool, Optional[torch.dtype]]:
     """
     Resolves precision configuration into:
-    1. model_dtype: Concrete torch.dtype for weights/models (torch.float32, torch.bfloat16, torch.float16).
-       For 'fp8' the master weights and autocast stay bf16/fp16; the fp8 tensor-core matmuls come from converting the
-       Linear layers with torchao (GptModel.convert_to_float8), not from fp8-typed weights or autocast.
+    1. model_dtype: dtype of the trainable (master) weights: always torch.float32. The optimizer's steps are lr x update, mostly
+       below 1e-4 once the schedule decays, and bf16/fp16 weights (about 3 significant digits) cannot absorb them: a 0.03 weight
+       moves in increments of ~1e-4, so smaller steps round back to the old value and training silently stalls (measured on the
+       350M: at lr 5e-5 half of the parameters no longer changed at all, at 3e-5 three quarters). fp32 masters accumulate every
+       step exactly; autocast still runs the matmuls in the low-precision compute dtype and the residual stream stays in it
+       (GptModel.compute_dtype_stream), so activation memory is unchanged; the fp32 weights/gradients/moments cost ~6 extra bytes
+       per parameter on the primary GPU and, where autocast re-casts the weights every micro-step, ~10% step time (measured on the
+       350M); MultiGpuGptModelDP avoids that by computing on bf16 copies of the Linear weights refreshed once per optimizer update.
+       For 'fp8' the fp8 tensor-core matmuls come from converting the Linear layers with torchao (GptModel.convert_to_float8) on
+       top of the same fp32 masters, not from fp8-typed weights or autocast.
     2. use_amp: Boolean flag indicating if automatic mixed precision is active on CUDA.
-    3. amp_dtype: Target dtype for torch.amp.autocast, or None if use_amp is False.
+    3. amp_dtype: Compute dtype for torch.amp.autocast (bfloat16 on Ampere+, float16 before), or None if use_amp is False.
     """
-    model_dtype = get_supported_precision_dtype(device, precision=precision)
-    if model_dtype == getattr(torch, "float8_e4m3fn", None):
-        model_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+    compute_dtype = get_supported_precision_dtype(device, precision=precision)
+    if compute_dtype == getattr(torch, "float8_e4m3fn", None):
+        compute_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
     use_cuda = device is not None and getattr(device, "type", "") == "cuda"
-    use_amp = use_cuda and (model_dtype != torch.float32)
-    amp_dtype = model_dtype if use_amp else None
-    return model_dtype, use_amp, amp_dtype
+    use_amp = use_cuda and (compute_dtype != torch.float32)
+    amp_dtype = compute_dtype if use_amp else None
+    return torch.float32, use_amp, amp_dtype
 
 
 def get_supported_amp_dtype(device: Optional[torch.device], precision: str = "fp16") -> Optional[torch.dtype]:
@@ -105,32 +112,17 @@ def get_supported_amp_dtype(device: Optional[torch.device], precision: str = "fp
     return amp_dtype
 
 
-class Fp16GradScaler(torch.amp.GradScaler):
-    """GradScaler for float16 weights. Without loss scaling, small gradients round to zero in float16 during the backward pass.
-    GradScaler refuses float16 gradients because unscaling them can round the tiniest values to zero again, but that costs
-    little: the scaling already kept the backward pass itself accurate."""
-    def _unscale_grads_(self, optimizer, inv_scale, found_inf, allow_fp16):
-        return super()._unscale_grads_(optimizer, inv_scale, found_inf, True)
-
-
 def create_grad_scaler(
     model: torch.nn.Module,
     device: Optional[torch.device],
     use_amp: bool = False,
     amp_dtype: Optional[torch.dtype] = None,
-    fine_tuning: bool = False,
 ) -> Optional[Any]:
     """
-    Instantiates a CUDA GradScaler when using FP16 mixed precision with FP32 parameters, or an Fp16GradScaler for fine-tuning/DPO
-    with FP16 parameters. GradScaler is not needed for BFloat16 or FP8, whose range matches FP32.
+    Instantiates a CUDA GradScaler when using FP16 mixed precision (float16 autocast over the fp32 master weights, pre-Ampere GPUs):
+    without loss scaling small gradients round to zero in the float16 backward pass. Not needed for BFloat16 or FP8, whose range matches FP32.
     """
     use_cuda = device is not None and getattr(device, "type", "") == "cuda"
     if not (use_cuda and use_amp and amp_dtype == torch.float16):
-        return None
-    trainable_dtypes = {p.dtype for p in model.parameters() if p.requires_grad}
-    if fine_tuning and trainable_dtypes == {torch.float16}:
-        print("[Precision] Dynamic loss scaling enabled so small fp16 gradients don't round to zero in the backward pass.")
-        return Fp16GradScaler("cuda")
-    if trainable_dtypes != {torch.float32}:
         return None
     return torch.amp.GradScaler("cuda")

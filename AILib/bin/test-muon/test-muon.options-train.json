@@ -9,5 +9,6 @@
     "resume": false,
     "step_limit": 5,
     "eval_freq": 2,
-    "single_gpu": true
+    "single_gpu": true,
+    "precompute_total_steps": false
 }

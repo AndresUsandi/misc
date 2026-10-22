@@ -45,6 +45,7 @@ DEFAULT_SAVE_TIMEOUT_SECONDS: float = 600.0
 SAVE_RETRY_INTERVAL_SECONDS: float = 1.0
 SAVE_LOG_INTERVAL_SECONDS: float = 10.0
 CHECKPOINT_TMP_PREFIX: str = "."
+_save_counts: Dict[str, int] = {}  # checkpoint saves per stage in this process (drives --checkpoint_keep_n)
 
 def atomic_replace_with_retry(src_path: Path, dst_path: Path, timeout_seconds: float = DEFAULT_SAVE_TIMEOUT_SECONDS) -> None:
     """
@@ -115,7 +116,7 @@ def save_checkpoint(
 ) -> str:
     """
     Unified, crash-proof checkpoint saver for pretraining, instruction fine-tuning, and DPO optimization.
-    Saves full training state (model weights, optimizer state, scheduler, step/epoch progress) to a checkpoint file (.trn.chk, .sft.chk, .dpo.chk).
+    Saves full training state (model weights, optimizer state, scheduler, step/epoch progress) to a checkpoint file (.chk.trn, .chk.sft, .chk.dpo).
     Path and filename resolution is strictly internal: [models_dir]/[model_name]/[model_name].[stage].chk
     """
     if not args.model_name:
@@ -204,6 +205,17 @@ def save_checkpoint(
 
     step_info = f" (Step {global_step})" if global_step > 0 else ""
     print(f"[gptio] Saved {stage_val.upper()} checkpoint{step_info} to: {target_file}")
+
+    # Step 3: every checkpoint_keep_n-th save, the backup (the checkpoint this one just replaced) becomes a rollback point: renamed to
+    # <model_name>-<its save time>.<stage>.chk instead of being overwritten by the next save. Never loaded automatically, never deleted.
+    keep_n = int(getattr(args, "checkpoint_keep_n", 0) or 0)
+    _save_counts[stage_val] = _save_counts.get(stage_val, 0) + 1
+    if keep_n > 0 and _save_counts[stage_val] % keep_n == 0 and backup_file.exists():
+        stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime(backup_file.stat().st_mtime))
+        chk_ext = next(e for e in (CHECKPOINT_TRN_EXT, CHECKPOINT_SFT_EXT, CHECKPOINT_DPO_EXT) if target_file.name.endswith(e))
+        archive_file = target_file.with_name(f"{target_file.name[:-len(chk_ext)]}-{stamp}{chk_ext}")
+        atomic_replace_with_retry(backup_file, archive_file, timeout_seconds=save_timeout)
+        print(f"[gptio] Archived the previous {stage_val.upper()} checkpoint as a rollback point (every {keep_n} saves): {archive_file.name}")
     return str(target_file)
 
 
@@ -305,6 +317,7 @@ def restore_training_state(
                 elif isinstance(state_obj, (list, tuple)):
                     return any(_has_opt_nan(v) for v in state_obj)
                 elif isinstance(state_obj, torch.Tensor):
+                    state_obj = getattr(state_obj, "scale", state_obj)  # torchao 8-bit moments: isnan is not implemented on the subclass; a NaN/Inf value makes its block's fp32 scale NaN/Inf
                     return bool(torch.isnan(state_obj).any() or torch.isinf(state_obj).any())
                 return False
 
@@ -335,7 +348,12 @@ def restore_training_state(
                                         else:
                                             p_state[buf_name] = torch.zeros_like(p)
 
-                if isinstance(optimizer, (list, tuple)) and isinstance(opt_state, (list, tuple)):
+                # fp32 and torchao 8-bit AdamW moments load into each other without error and then crash at the first step: detect the mismatch instead
+                ckpt_8bit = any(hasattr(v, "codes") for s in (opt_state if isinstance(opt_state, (list, tuple)) else [opt_state]) for st in s.get("state", {}).values() for v in st.values())
+                opt_8bit = any(type(o).__module__.startswith("torchao") for o in (optimizer if isinstance(optimizer, (list, tuple)) else [optimizer]))
+                if ckpt_8bit != opt_8bit:
+                    print(f"[gptio] Notice: the checkpoint's AdamW moments are {'8-bit' if ckpt_8bit else 'fp32'} but --use_torchao_adamw8bit is {'on' if opt_8bit else 'off'}; they cannot be loaded into each other. Resuming with freshly initialized optimizer state.")
+                elif isinstance(optimizer, (list, tuple)) and isinstance(opt_state, (list, tuple)):
                     for opt, s_dict in zip(optimizer, opt_state):
                         opt.load_state_dict(s_dict)
                 elif not isinstance(optimizer, (list, tuple)) and isinstance(opt_state, dict):

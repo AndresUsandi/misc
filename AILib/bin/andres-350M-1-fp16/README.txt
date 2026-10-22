@@ -1,0 +1,1 @@
+first attempt at a 350M model. datasets were mostly manually selected.

@@ -7,5 +7,6 @@
     "max_length": 256,
     "step_limit": 5,
     "single_gpu": true,
-    "test_mode": true
+    "test_mode": true,
+    "precompute_total_steps": true
 }

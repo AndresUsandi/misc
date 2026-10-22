@@ -195,9 +195,11 @@ def _clean_state_dict_keys(state_dict: Dict[str, Any], target_model: nn.Module) 
                 c_rows, c_cols = c_shape
                 if t_cols == c_cols:
                     if c_rows < t_rows:
-                        # Pad extra rows with zeros
+                        # Extra rows keep the model's random init (so new tokens such as the ChatML specials stay distinct) shifted by the mean of the real rows:
+                        # a trained model's real logits can sit far below 0 (GPT-2 355M: ~-57), so rows left near 0 would soak up almost all probability mass (loss 62 instead of 2.3)
                         padded = target_dict[emb_key].clone().to(device=cleaned_sd[emb_key].device, dtype=cleaned_sd[emb_key].dtype)
                         padded[:c_rows, :] = cleaned_sd[emb_key]
+                        padded[c_rows:, :] += cleaned_sd[emb_key].float().mean(dim=0, keepdim=True).to(dtype=padded.dtype)
                         cleaned_sd[emb_key] = padded
                     else:
                         # Truncate extra padding rows

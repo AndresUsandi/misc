@@ -8,5 +8,6 @@
     "eval_freq": 2,
     "single_gpu": true,
     "device": "cuda",
-    "gpu_index": 0
+    "gpu_index": 0,
+    "precompute_total_steps": false
 }

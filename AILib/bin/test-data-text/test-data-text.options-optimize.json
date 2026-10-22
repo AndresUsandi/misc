@@ -11,5 +11,6 @@
     "learning_rate": 5e-06,
     "resume": false,
     "step_limit": 5,
-    "single_gpu": true
+    "single_gpu": true,
+    "precompute_total_steps": true
 }

@@ -1,0 +1,229 @@
+[Options] Overrode 15 parameter(s) from 'test-dp-compile.options-train.json': batch_size=4, accum_steps=2, num_epochs=2, multi_gpu_strategy=data-parallelism, single_gpu=False, gpu_index=0, compile=True, coordinate_descent_tuning=True, precision=fp16, learning_rate=0.0005, resume=True, step_limit=3, eval_freq=2, save_interval=2, precompute_total_steps=False
+=================================================================
+      FULLY-OPTIMIZED GPT TRAINING
+=================================================================
+Model: test-dp-compile
+Device: cuda:0 | Active GPUs: 2 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.bfloat16)
+Model: test-dp-compile (8 layers, 512 emb, 8 heads)
+Batch Size: 4 (Effective: 8) | Accum Steps: 2
+Epochs: 2 | AdamW LR: 0.0005 | Muon LR: 0.001 | Warmup Steps: 100
+Vocab: 50,304 | Context: 512 | Layers: 8 | Dim: 512 | Heads: 8
+Training Data Path: bin\test-dp-compile\data\Training
+Total training files found: 1
+  [1/1] bin\test-dp-compile\data\Training\TheVeredict\the-verdict.txt
+=================================================================
+Multi-GPU Mode: Wrapping model in MultiGpuGptModelDP across 2 GPUs (Data Parallelism, compile=True, primary=cuda:0)!
+[Multi-GPU DP] Applying torch.compile to replica on cuda:0...
+[Multi-GPU DP] Applying torch.compile to replica on cuda:1...
+Optimizer Configured: 1 ([Single Fused AdamW for all layers, default])
+[Resume] No existing checkpoint found for 'test-dp-compile' (TRAIN). Starting from scratch.
+[Training Plan] Resumed from step 0. Training for 3 steps -> Target step: 3.
+[Checkpointing] Periodic saves enabled every 2 steps -> 'test-dp-compile'.
+[Data] 1 file(s): 5,148 tokens -> 9 train windows x 512 (2 steps/epoch of 4, 4 total global steps), 1 val windows | fixed eval buffers: 1 val + 1 train batch(es) sampled across all files.
+==================================================
+Starting Epoch 1/2
+==================================================
+Ep 1/2 (Step 000002/000002 - 100% | Global 000002/000004 - 50%): Train 10.627, Val 10.676 | PPL: 43290.14 | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000015
+[VRAM cuda:0] peak 1.048 GB = weights 0.335 + grads 0.335 + optim 0.382 + other 0.000 | now 1.001 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 0.752 GB = weights 0.144 + grads 0.144 + optim 0.000 + other 0.464 | now 0.240 | reserved * (unused *) | process * | device * used | alloc retries *
+[gptio] Saved TRAIN checkpoint (Step 2) to: bin\test-dp-compile\test-dp-compile.chk.trn
+Sample: <text>
+Val by dataset: TheVeredict 10.676
+[VRAM cuda:0] peak 1.242 GB = weights 0.335 + grads 0.335 + optim 0.382 + other 0.191 | now 1.001 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 0.384 GB = weights 0.144 + grads 0.144 + optim 0.000 + other 0.096 | now 0.238 | reserved * (unused *) | process * | device * used | alloc retries *
+Progress: 2/4 steps | Session elapsed: * (*) | ETA for remaining steps: * (*)
+Sample: <text>
+Val by dataset: TheVeredict 10.676
+[VRAM cuda:0] peak 1.242 GB = weights 0.335 + grads 0.335 + optim 0.382 + other 0.191 | now 1.001 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 0.238 GB = weights 0.144 + grads 0.144 + optim 0.000 + other 0.000 | now 0.238 | reserved * (unused *) | process * | device * used | alloc retries *
+Progress: 2/4 steps | Session elapsed: * (*) | ETA for remaining steps: * (*)
+[gptio] Saved TRAIN checkpoint (Step 2) to: bin\test-dp-compile\test-dp-compile.chk.trn
+==================================================
+Starting Epoch 2/2
+==================================================
+[gptio] Saved TRAIN checkpoint (Step 3) to: bin\test-dp-compile\test-dp-compile.chk.trn
+[Step Limit Reached] Completed 3 step(s) in this session (Global Step: 3).
+Checkpoint saved for 'test-dp-compile'. Training paused cleanly.
+============================================================
+               TRAINING COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 4,096 (ideal: 1B-6.7B)
+  Final Losses       : Train 10.627 (ideal: 3.90-4.05) | Val 10.676 (ideal: 3.95-4.10)
+  Val - Train Gap    : +0.049 (UNDERFITTING!)
+  Perplexity         : 43290.14 (ideal: 51.7-60.1)
+  Model              : test-dp-compile (~51.2M params)
+============================================================
+[Plot] Saved pretraining loss curves to 'bin\test-dp-compile\test-dp-compile-loss-plot-train.pdf'.
+[Options] Overrode 15 parameter(s) from 'test-dp-compile.options-train.json': batch_size=4, accum_steps=2, num_epochs=2, multi_gpu_strategy=data-parallelism, single_gpu=False, gpu_index=0, compile=True, coordinate_descent_tuning=True, precision=fp16, learning_rate=0.0005, resume=True, step_limit=3, eval_freq=2, save_interval=2, precompute_total_steps=False
+=================================================================
+      FULLY-OPTIMIZED GPT TRAINING
+=================================================================
+Model: test-dp-compile
+Device: cuda:0 | Active GPUs: 2 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.bfloat16)
+Model: test-dp-compile (8 layers, 512 emb, 8 heads)
+Batch Size: 4 (Effective: 8) | Accum Steps: 2
+Epochs: 2 | AdamW LR: 0.0005 | Muon LR: 0.001 | Warmup Steps: 100
+Vocab: 50,304 | Context: 512 | Layers: 8 | Dim: 512 | Heads: 8
+Training Data Path: bin\test-dp-compile\data\Training
+Total training files found: 1
+  [1/1] bin\test-dp-compile\data\Training\TheVeredict\the-verdict.txt
+=================================================================
+Multi-GPU Mode: Wrapping model in MultiGpuGptModelDP across 2 GPUs (Data Parallelism, compile=True, primary=cuda:0)!
+[Multi-GPU DP] Applying torch.compile to replica on cuda:0...
+[Multi-GPU DP] Applying torch.compile to replica on cuda:1...
+Optimizer Configured: 1 ([Single Fused AdamW for all layers, default])
+[Resume] Successfully loaded active TRAIN checkpoint at Global Step 3 (Epoch 2, File 1, Step 1, Tokens seen: 6,144).
+[Training Plan] Resumed from step 3. Training for 3 steps -> Target step: 6.
+[Checkpointing] Periodic saves enabled every 2 steps -> 'test-dp-compile'.
+[Data] 1 file(s): 5,148 tokens -> 9 train windows x 512 (2 steps/epoch of 4, 4 total global steps), 1 val windows | fixed eval buffers: 1 val + 1 train batch(es) sampled across all files.
+==================================================
+Starting Epoch 2/2
+==================================================
+[Resume] Fast-forwarding 1 step(s) in Epoch 2 -> Resuming from step 2/2...
+Ep 2/2 (Step 000002/000002 - 100% | Global 000004/000004 - 100%): Train 10.216, Val 10.311 | PPL: 30054.69 | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000025
+[VRAM cuda:0] peak 1.131 GB = weights 0.335 + grads 0.335 + optim 0.382 + other 0.080 | now 1.001 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 0.528 GB = weights 0.144 + grads 0.144 + optim 0.000 + other 0.240 | now 0.208 | reserved * (unused *) | process * | device * used | alloc retries *
+[gptio] Saved TRAIN checkpoint (Step 4) to: bin\test-dp-compile\test-dp-compile.chk.trn
+Sample: <text>
+Val by dataset: TheVeredict 10.311
+[VRAM cuda:0] peak 1.242 GB = weights 0.335 + grads 0.335 + optim 0.382 + other 0.191 | now 1.001 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 0.353 GB = weights 0.144 + grads 0.144 + optim 0.000 + other 0.065 | now 0.206 | reserved * (unused *) | process * | device * used | alloc retries *
+Progress: 4/4 steps | Session elapsed: * (*) | ETA for remaining steps: * (*)
+Sample: <text>
+Val by dataset: TheVeredict 10.311
+[VRAM cuda:0] peak 1.242 GB = weights 0.335 + grads 0.335 + optim 0.382 + other 0.191 | now 1.001 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 0.206 GB = weights 0.144 + grads 0.144 + optim 0.000 + other 0.000 | now 0.206 | reserved * (unused *) | process * | device * used | alloc retries *
+Progress: 4/4 steps | Session elapsed: * (*) | ETA for remaining steps: * (*)
+[gptio] Saved TRAIN checkpoint (Step 4) to: bin\test-dp-compile\test-dp-compile.chk.trn
+[gptio] Saved TRAIN checkpoint (Step 4) to: bin\test-dp-compile\test-dp-compile.chk.trn
+[modelio] Successfully saved clean final model to: bin\test-dp-compile\test-dp-compile.pth
+============================================================
+               TRAINING COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 8,192 (ideal: 1B-6.7B)
+  Final Losses       : Train 10.216 (ideal: 3.90-4.05) | Val 10.311 (ideal: 3.95-4.10)
+  Val - Train Gap    : +0.095 (UNDERFITTING!)
+  Perplexity         : 30054.69 (ideal: 51.7-60.1)
+  Model              : test-dp-compile (~51.2M params)
+============================================================
+[Plot] Saved pretraining loss curves to 'bin\test-dp-compile\test-dp-compile-loss-plot-train.pdf'.
+[Options] Overrode 11 parameter(s) from 'test-dp-compile.options-tune.json': batch_size=4, accum_steps=2, num_epochs=1, multi_gpu_strategy=data-parallelism, single_gpu=False, compile=True, precision=fp16, learning_rate=0.0005, max_length=512, step_limit=5, precompute_total_steps=True
+[Memory] cuda:0: allocator cache capped at 15.10 GiB of 15.89 GiB (* GiB already in use as seen by CUDA).
+[Memory] cuda:1: allocator cache capped at 15.10 GiB of 15.89 GiB (* GiB already in use as seen by CUDA).
+=================================================================
+      FULLY-OPTIMIZED GPT INSTRUCTION FINE-TUNING (SFT)
+=================================================================
+Device: cuda:0 | Active GPUs: 2 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.bfloat16)
+Model: test-dp-compile (8 layers, 512 emb, 8 heads)
+Batch Size: 4 (Accum Steps: 2) | Epochs: 1 | Peak LR: 0.000500
+Instruction Data: bin\test-dp-compile\data\Tuning (1 file(s))
+  [1/1] combined_1.txt
+=================================================================
+Multi-GPU Mode: Wrapping model in MultiGpuGptModelDP across 2 GPUs (Data Parallelism, compile=True, primary=cuda:0)!
+[Multi-GPU DP] Applying torch.compile to replica on cuda:0...
+[Multi-GPU DP] Applying torch.compile to replica on cuda:1...
+[Resume] Loaded base pre-trained weights for TUNE. Starting TUNE from Step 0.
+[Training Plan] This pass streamed 19 batches where the plan said 15 (+26.7%); the steps cache now holds the exact count and every later plan uses it (a resumed run re-anchors its LR cosine on the new horizon instead of jumping).
+[Steps Precompute] SFT: streamed the first epoch's 19 batches on the CPU in * to record the exact step counts of 1 file(s) (steps_cache.json).
+[Validation Buffer] Built fixed stratified SFT validation buffer: 8 batches across 1 file(s).
+[Streaming Loader] Initialized streaming instruction loader across 1 file(s): ~19 train steps, ~8 val steps | step plan: exact (steps cache).
+[Training Plan] Target epochs: 1 | Steps per epoch: 19 (Optimizer updates: 10) | Planned updates: 10 | Step plan: exact (steps cache)
+[Training Plan] Resumed from step 0. Training for 5 steps -> Target step: 5.
+[Gradient Accumulation] Accumulating gradients over 2 sub-steps before optimizer update.
+[Checkpointing] Model target: 'test-dp-compile'
+[Initial State Evaluation]
+  Initial Train Loss : 10.5384
+  Initial Val Loss   : 10.3774 (Seq: 10.3408) (PPL: Resp 32126.23 | Seq 30970.42) (Eval took *)
+======================================================================
+Starting Fine-Tuning Epoch 1/1
+======================================================================
+Ep 1/1 (Step 000010/000019 - 53% | Global 000005/000010 - 50%): Train 10.032, Val 8.563 (Seq 9.050) | PPL: 5233.75 (Seq 8515.93) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000251
+[VRAM cuda:0] peak 1.353 GB = weights 0.335 + grads 0.335 + optim 0.382 + other 0.302 | now 0.841 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 0.749 GB = weights 0.144 + grads 0.144 + optim 0.000 + other 0.461 | now 0.238 | reserved * (unused *) | process * | device * used | alloc retries *
+[gptio] Saved TUNE checkpoint (Step 5) to: bin\test-dp-compile\test-dp-compile.chk.sft
+[Step Limit Reached] Reached target step 5. Pausing fine-tuning cleanly.
+============================================================
+               FINE-TUNING COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 15,548 (ideal: 200M-1B)
+  Final Losses       : Train 10.032 | Val 8.563 (Seq: 9.050, ideal: 2.25-2.55)
+  Val - Train Gap    : -1.469 (UNDERFITTING!)
+  Perplexity         : Resp 5233.75 | Seq 8515.93 (ideal: 9.5-12.8)
+  Model              : test-dp-compile (~51.2M params)
+============================================================
+[Plot] Saved fine-tuning loss curves to 'bin\test-dp-compile\test-dp-compile-loss-plot-tune.pdf'.
+[Options] Overrode 13 parameter(s) from 'test-dp-compile.options-optimize.json': batch_size=2, accum_steps=2, num_epochs=1, single_gpu=False, pol_device=1, ref_device=0, compile=True, precision=fp16, learning_rate=5e-06, beta=0.1, max_length=512, step_limit=5, precompute_total_steps=True
+[Memory] cuda:0: allocator cache capped at 15.10 GiB of 15.89 GiB (* GiB already in use as seen by CUDA).
+[Memory] cuda:1: allocator cache capped at 15.10 GiB of 15.89 GiB (* GiB already in use as seen by CUDA).
+=================================================================
+      GPT DIRECT PREFERENCE OPTIMIZATION (DPO)
+=================================================================
+Policy Device: cuda:1 | Ref Device: cuda:0 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.bfloat16)
+Model: test-dp-compile (8 layers, 512 emb, 8 heads)
+Batch Size: 2 (Accum Steps: 2) | Epochs: 1 | LR: 0.0000050 | Beta: 0.1
+Preference Data: bin\test-dp-compile\data\Optimizing (1 file(s))
+  [1/1] preference_combined_1.json
+Base Model: test-dp-compile
+=================================================================
+[Reference Model] Initialized frozen reference model from SFT checkpoint (.chk.sft) on cuda:1.
+Multi-GPU Mode: Wrapping policy and reference model in MultiGpuGptModelDP across 2 GPUs (Data Parallelism, compile=True, primary=cuda:1)!
+[Multi-GPU DP] Applying torch.compile to replica on cuda:1...
+[Multi-GPU DP] Applying torch.compile to replica on cuda:0...
+[Resume] Loaded base SFT weights for OPTIMIZE. Starting OPTIMIZE from Step 0.
+[Training Plan] This pass streamed 92 batches where the plan said 85 (+8.2%); the steps cache now holds the exact count and every later plan uses it (a resumed run re-anchors its LR cosine on the new horizon instead of jumping).
+[Steps Precompute] DPO: streamed the first epoch's 92 batches on the CPU in * to record the exact step counts of 1 file(s) (steps_cache.json).
+[Validation Buffer] Built fixed stratified DPO validation buffer: 16 batches across 1 file(s).
+[Streaming Loader] Initialized streaming preference loader across 1 file(s): ~92 train steps, ~16 val steps | step plan: exact (steps cache).
+[DPO Plan] Target epochs: 1 | Steps per epoch: 92 (Updates: 46) | Total updates: 46 | Step plan: exact (steps cache)
+[DPO Plan] Resumed from step 0. Training for 5 steps -> Target step: 5.
+[Gradient Accumulation] Accumulating gradients over 2 sub-steps before optimizer update.
+[Checkpointing] Model target: 'test-dp-compile'
+[Initial State Evaluation]
+  Initial Train Loss : 5.1868 | Margin: +0.0000 | Chosen vs ref: +0.0000 | Acc: *
+  Initial Val Loss   : 5.5126 | Margin: +0.0000 | Chosen vs ref: +0.0000 | Acc: * (Eval took *)
+======================================================================
+Starting DPO Optimization Epoch 1/1
+======================================================================
+Ep 1/1 (Step 000010/000092 - 11% | Global 000005/000046 - 11%): Train 5.150, Val 5.476 | Margin: Tr +0.006, Val +0.005 | Acc: * | Chosen vs ref: Tr +0.073, Val +0.073 | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.0000049
+[VRAM cuda:0] peak 0.973 GB = weights 0.144 + grads 0.144 + optim 0.000 + other 0.685 | now 0.397 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 1.576 GB = weights 0.335 + grads 0.335 + optim 0.382 + other 0.525 | now 1.001 | reserved * (unused *) | process * | device * used | alloc retries *
+[gptio] Saved OPTIMIZE checkpoint (Step 5) to: bin\test-dp-compile\test-dp-compile.chk.dpo
+[Step Limit Reached] Reached target step 5. Pausing DPO optimization cleanly.
+----------------------------------------------------------------------
+[Sample Model Response @ Epoch 1]
+  Instruction : <|im_start|>user
+Evaluate the following phrase by transforming it into the spelling given.
+freind -
+  Preferred   : The spelling of the given phrase "freind" is incorrect, the correct spelling is "friend".
+  Model Output: <text>
+----------------------------------------------------------------------
+[VRAM cuda:0] peak 0.519 GB = weights 0.144 + grads 0.144 + optim 0.000 + other 0.231 | now 0.429 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 1.099 GB = weights 0.335 + grads 0.335 + optim 0.382 + other 0.048 | now 1.032 | reserved * (unused *) | process * | device * used | alloc retries *
+File processed: * | Total elapsed: * | ETA for remaining files: *
+============================================================
+               DPO OPTIMIZATION COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 8,556 (ideal: 25.6M-256.1M)
+  Final Losses       : Train 5.150 | Val 5.476
+  Val - Train Gap    : +0.326 (OVERFITTING!)
+  Final Margins      : Train +0.006 | Val +0.005
+  Model              : test-dp-compile (~51.2M params)
+============================================================
+[Plot] Saved DPO telemetry curves to 'bin\test-dp-compile\test-dp-compile-loss-plot-optimize.pdf'.
+[Options] Overrode 5 parameter(s) from 'test-dp-compile.options-infer.json': temperature=0.7, top_k=50, top_p=0.9, single_gpu=True, gpu_index=0
+[SpellCheck] Autocorrect initialized (SymSpell dictionary-based cleanup active).
+============================================================
+           Interactive GPT Conversation Console
+============================================================
+Model Target    : test-dp-compile
+Precision       : FP16 (dtype: torch.bfloat16)
+Device          : cuda:0 (Available GPUs: 0)
+Temperature     : 0.7 | Top-K: 50 | Top-P: 0.9
+System Prompt   : You are a helpful and coherent AI assistant.
+============================================================
+[modelio] Successfully loaded model weights from: bin\test-dp-compile\test-dp-compile.pth
+⚡ [Performance] Response: * tok/s | Session Avg: * tok/s | Tokens: * in *

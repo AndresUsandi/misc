@@ -8,5 +8,6 @@
     "step_limit": 5,
     "single_gpu": true,
     "json_precompute": true,
-    "eval_freq": 2
+    "eval_freq": 2,
+    "precompute_total_steps": true
 }

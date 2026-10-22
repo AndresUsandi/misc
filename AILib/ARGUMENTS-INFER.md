@@ -12,11 +12,12 @@ This document provides a comprehensive technical reference for every command-lin
    - [`--prompt`](#prompt)
    - [`--autocorrect`](#autocorrect)
 2. [Sampling & Generation Controls](#2-sampling--generation-controls)
-   - [`--max_new_tokens`](#max_new_tokens)
    - [`--temperature`](#temperature)
    - [`--top_k`](#top_k)
    - [`--top_p`](#top_p)
    - [`--repetition_penalty`](#repetition_penalty)
+   - [`--no_repeat_ngram`](#no_repeat_ngram)
+   - [`--seed`](#seed)
 3. [Hardware, Acceleration & Precision](#3-hardware-acceleration--precision)
    - [`--device`](#device)
    - [`--single_gpu`](#single_gpu)
@@ -43,7 +44,7 @@ This document provides a comprehensive technical reference for every command-lin
 #### In-Depth Explanation
 Designates the target model architecture and weights to load for execution:
 - **Registry / Hub Models**: Supports official pretrained open weights including the standard GPT-2 family (`gpt2:124M`, `gpt2:355M`, `gpt2:774M`, `gpt2:1.5B`), LLaMA 3.2 (`llama3.2:1B`, `llama3.2:3B`), Qwen 2.5 / 3 (`qwen3:0.6B`), and Gemma 2 (`gemma2:2B`).
-- **Custom Local Models**: Resolves local model subdirectories inside `<models_base_dir>/<model_name>/` (e.g. `andres1xs-150M`, `andres1-1B`). Checks for configuration metadata in `<model_name>.config.json` and automatically discovers stage checkpoints (`.dpo.chk`, `.sft.chk`, `.trn.chk`, or base `.pth` weights).
+- **Custom Local Models**: Resolves local model subdirectories inside `<models_base_dir>/<model_name>/` (e.g. `andres1xs-150M`, `andres1-1B`). Checks for configuration metadata in `<model_name>.config.json` and automatically discovers stage checkpoints (`.chk.dpo`, `.chk.sft`, `.chk.trn`, or base `.pth` weights).
 - **Filesystem Paths**: Accepts direct filesystem paths to custom checkpoint files or weights directories.
 - **Tokenizer**: Taken from the model's `model-params.json` (`"tokenizer"` key; see ARGUMENTS-TRAIN.md). There is no inference-side override, so the exact vocabulary the model was trained with is always used.
 
@@ -97,20 +98,7 @@ Enables automated dictionary-based spell checking and character transposition cl
 <a id="2-sampling--generation-controls"></a>
 ## 2. Sampling & Generation Controls
 
-<a id="max_new_tokens"></a>
-<a id="--max_new_tokens"></a>
-### `--max_new_tokens`
-- **CLI Flag**: `--max_new_tokens`
-- **JSON Key**: `max_new_tokens`
-- **Type**: `int`
-- **Default**: `1024`
-
-#### In-Depth Explanation
-Enforces an absolute ceiling on the number of new tokens generated during a single response turn:
-- **Early Termination**: Autoregressive generation halts as soon as the model predicts any registered end-of-sequence (EOS) token (e.g. `<|endoftext|>`, `<|im_end|>`, `<|eot_id|>`, or `<end_of_turn>`).
-- **Context Length Clamping**: If the input prompt length plus requested `max_new_tokens` exceeds the model's architectural `context_length` (e.g. 1024 or 2048 tokens), the engine automatically clamps `max_new_tokens` to `context_length - prompt_len` to prevent out-of-bounds positional encoding errors.
-
----
+There is no reply-length option: a reply may use whatever the model's `context_length` leaves after the prompt (`context_length - prompt tokens`), and a long conversation is trimmed to its most recent tokens so that at least half the window stays available for the reply. Generation ends early as soon as the model predicts a registered end-of-sequence token (e.g. `<|endoftext|>`, `<|im_end|>`, `<|eot_id|>`, or `<end_of_turn>`).
 
 <a id="temperature"></a>
 <a id="--temperature"></a>
@@ -176,7 +164,7 @@ $$\sum_{i \in V^{(p)}} P(w_i \mid w_{<t}) \ge p$$
 - **CLI Flag**: `--repetition_penalty`
 - **JSON Key**: `repetition_penalty`
 - **Type**: `float`
-- **Default**: `1.2`
+- **Default**: `1.05`
 
 #### In-Depth Explanation
 Penalizes the unnormalized logit values of tokens that have already appeared in the prompt or previously generated sequence to prevent repetitive degeneration and phrase looping (Keskar et al., 2019):
@@ -188,6 +176,37 @@ where $\theta \ge 1.0$ is the repetition penalty factor:
 - **`> 1.0`**: Penalizes seen tokens. Positive logits are scaled down towards zero; negative logits are amplified downwards (more negative).
 - **Typical Range**: `1.1` to `1.3`. A default of `1.2` provides effective protection against degeneration and loops without degrading natural language fluency or grammatical phrasing. For compact models susceptible to context echoing, `1.25` is recommended.
 - **Special Token Exemption**: All special control and boundary tokens (`<|...|>`, e.g. `<|im_start|>`, `<|im_end|>`, `<|endoftext|>`) are strictly exempt from repetition penalties, ensuring conversation turn delimiters and EOS stop signals are never suppressed when seen in context.
+
+---
+
+<a id="no_repeat_ngram"></a>
+<a id="--no_repeat_ngram"></a>
+### `--no_repeat_ngram`
+- **CLI Flag**: `--no_repeat_ngram`
+- **JSON Key**: `no_repeat_ngram`
+- **Type**: `int`
+- **Default**: `0` (disabled)
+
+#### In-Depth Explanation
+Exact-repeat ban over the reply being generated (the `no_repeat_ngram_size` idea of Paulus et al., 2018). Before each token is picked, the last $n-1$ generated tokens are looked up in the reply so far; every token that followed an earlier copy of that same $n-1$-token run is excluded outright, so no $n$-gram can occur twice and a verbatim phrase or sentence loop cannot form. Ordinary reuse of words stays allowed because only the exact $n$-token continuation is blocked.
+
+- **`0`**: Disabled.
+- **`1` or more**: Enabled with that n-gram size. `3`–`5` is sensible (`4` blocks sentence loops while leaving list markers and short phrases alone); `1` forbids any token from ever appearing twice and is only useful for experiments.
+- **Hard ban vs. soft tax**: `--repetition_penalty` scales the logits of every token seen anywhere in the context, so a repeated word remains possible and a strong value also taxes the words a correct answer must reuse; the n-gram ban removes exactly the looping continuation and nothing else, and it never looks at the prompt or earlier turns.
+- **Special Token Exemption**: as for `--repetition_penalty`, `<|...|>` tokens (turn delimiters, EOS) are never banned. The ban applies in greedy and sampled decoding alike; it runs in the sampler outside the CUDA graph, so it works with `--use_cuda_graph` enabled.
+
+---
+
+<a id="seed"></a>
+<a id="--seed"></a>
+### `--seed`
+- **CLI Flag**: `--seed`
+- **JSON Key**: `seed`
+- **Type**: `int`
+- **Default**: `None`
+
+#### In-Depth Explanation
+Calls `torch.manual_seed(seed)` immediately before every generation turn, so the same prompt and conversation history produce the same sampled tokens run after run. Sampling happens outside the CUDA graph, so the seed is honored with `--use_cuda_graph` enabled. Used by the model quality tests (`gpttests/data`) to make failing samples reproducible; the test harness derives per-sample seeds as `seed + sample_index`. Leave unset for ordinary non-deterministic chat.
 
 ---
 
@@ -326,7 +345,6 @@ When present, the orchestrator automatically loads this file and applies overrid
 ### Example Configuration (`andres1-1B.options-infer.json`)
 ```json
 {
-  "max_new_tokens": 1024,
   "temperature": 0.7,
   "top_k": 50,
   "top_p": 0.9,

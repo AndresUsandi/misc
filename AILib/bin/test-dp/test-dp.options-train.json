@@ -8,5 +8,6 @@
     "learning_rate": 0.0005,
     "resume": false,
     "step_limit": 5,
-    "eval_freq": 2
+    "eval_freq": 2,
+    "precompute_total_steps": false
 }

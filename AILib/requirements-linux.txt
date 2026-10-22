@@ -1,0 +1,152 @@
+
+# ---------------------------------------------------------------------------------------------------------------
+# Machine setup: Linux AI training
+# Reference: Alienware Aurora R11, Ubuntu 24.04 LTS, 2x NVIDIA RTX 5070 Ti (Blackwell).
+#
+# PREREQUISITES
+#   1. NVIDIA driver 595.99.02-open (Ubuntu 24.04 recommended driver).
+#      Verify: nvidia-smi
+#      Both RTX 5070 Ti GPUs should be detected.
+#
+#   2. Python 3.12.3 (Ubuntu 24.04 system Python).
+#      Do NOT install project packages into Ubuntu's system Python.
+#
+#   3. Shared Python virtual environment:
+#        /home/andres/ai-env
+#      Automatically activated from ~/.bashrc for interactive terminals.
+#      Verify:
+#        which python
+#        python --version
+#      Expected: /home/andres/ai-env/bin/python, Python 3.12.3
+#
+#   4. Git and GitHub CLI installed via apt.
+#
+# INSTALLATION
+#   From the AILib project directory, with ai-env activated:
+#
+#     python -m pip install --upgrade pip setuptools wheel
+#     python -m pip install -r requirements-linux.txt
+#     python -m pip install nvidia-cublas==13.2.2.2   # REQUIRED second step, see CUDA section below.
+#
+#   Do not use sudo pip or --break-system-packages.
+#
+# CUDA / CUDNN / TRITON
+#   - No standalone CUDA Toolkit or cuDNN installation is required for normal PyTorch training.
+#   - torch==2.14.0+cu130 supplies CUDA 13.0 runtime libraries and cuDNN through its
+#     Python package dependencies.
+#   - NVIDIA driver 595.99.02 supports the CUDA 13.0 runtime.
+#   - nvidia-cublas MUST be overridden to 13.2.2.2 after installing this file (second command above).
+#     torch 2.14.0+cu130 pins cuda-toolkit==13.0.3 -> nvidia-cublas==13.1.1.3, whose Blackwell FP8
+#     kernels fail with CUBLAS_STATUS_INTERNAL_ERROR on every GPU except the first one a process uses
+#     (breaks multi-GPU data parallelism with precision=fp8). pip rejects the 13.2.2.2 pin inside
+#     this file (ResolutionImpossible against cuda-toolkit), so it has to be a separate command.
+#   - PyTorch installs its compatible Linux Triton dependency automatically.
+#   - Do NOT install triton-windows on Linux.
+#   - No Visual Studio, MSVC, or Windows-specific build tools are required.
+#   - A standalone CUDA Toolkit may be required later for custom CUDA extensions.
+#
+# PERFORMANCE-CRITICAL VERSIONS
+#   torch==2.14.0+cu130
+#   torchao==0.18.0
+#   nvidia-cublas==13.2.2.2 (post-install override, NOT 13.1.1.3 resolved by torch)
+#   Triton: use the Linux version resolved by PyTorch.
+#
+#   These versions match the reference Windows training stack where applicable.
+#   Linux training performance must be benchmarked separately.
+#
+# MODEL FILES / CHECKPOINTS
+#   The bin/<model>/ directories are Git-ignored and are NOT downloaded by git clone.
+#   Copy the required model parameters, configuration JSONs, datasets, and checkpoints
+#   from the reference Windows machine or download them separately.
+#
+# CONTENT VALIDATORS / LLM JUDGE
+#   transformers, sentencepiece, and protobuf are required for the DeBERTa NLI validator.
+#
+#   llama-cpp-python is intentionally NOT included in these requirements.
+#   Its CUDA installation is platform- and GPU-architecture-specific.
+#
+#   The Windows setup script gpttests/download_judge.py may install a Windows-specific
+#   CUDA wheel. Review and adapt it for Linux before running it.
+#
+#   The Gemma 4 E4B judge GGUF (~5 GB) is stored separately under bin/judge.
+#   Download or copy it after the Python environment is operational.
+#
+# VERIFICATION
+#   After installation:
+#
+#     python -c "import torch, torchao, triton; print(torch.__version__, torchao.__version__, triton.__version__)"
+#     python -c "import torch; print(torch.cuda.is_available(), torch.cuda.device_count())"
+#     python -c "import importlib.metadata as m; print(m.version('nvidia-cublas'))"
+#
+#   Expected: CUDA available = True, GPU count = 2, nvidia-cublas = 13.2.2.2.
+#
+#   Also verify that the PyTorch build supports Blackwell compute capability sm_120.
+#
+# REPRODUCIBILITY
+#   Once installation and training are verified:
+#
+#     python -m pip freeze > requirements-linux-locked.txt
+#
+#   Keep this file as the intended dependency specification.
+#   Use the locked file to reproduce the exact resolved package versions on other R11s.
+# ---------------------------------------------------------------------------------------------------------------
+
+# PyTorch CUDA 13.0 wheel repository.
+--extra-index-url https://download.pytorch.org/whl/cu130
+
+# ---------------------------------------------------------------------------------------------------------------
+# CORE TRAINING STACK
+# ---------------------------------------------------------------------------------------------------------------
+
+# PyTorch with CUDA 13.0 and Blackwell support.
+torch==2.14.0+cu130
+
+# Quantization and FP8 training support.
+torchao==0.18.0
+
+# nvidia-cublas==13.2.2.2 cannot be listed here (pip: ResolutionImpossible against torch's
+# cuda-toolkit==13.0.3 pin). Install it with the separate second command in INSTALLATION above.
+
+# Linux Triton is installed automatically by PyTorch.
+# Do not add triton-windows.
+
+# ---------------------------------------------------------------------------------------------------------------
+# TOKENIZATION / DATASETS / MODEL HUB
+# ---------------------------------------------------------------------------------------------------------------
+
+tiktoken>=0.7.0
+datasets>=2.18.0
+huggingface_hub>=0.20.0
+tokenizers>=0.19.0
+gguf>=0.19.0  # model_file_util.py --conversion_type model_to_gguf (llama.cpp's own GGUF writer; pure Python)
+
+# ---------------------------------------------------------------------------------------------------------------
+# DATA PROCESSING / STORAGE
+# ---------------------------------------------------------------------------------------------------------------
+
+pyarrow>=15.0.0
+symspellpy>=6.7.0
+pandas>=2.0.0
+duckdb>=1.0.0
+fastparquet>=2024.0.0
+
+# ---------------------------------------------------------------------------------------------------------------
+# UTILITIES / VISUALIZATION
+# ---------------------------------------------------------------------------------------------------------------
+
+matplotlib>=3.7.0
+tqdm>=4.66.0
+requests>=2.31.0
+
+# ---------------------------------------------------------------------------------------------------------------
+# CONTENT VALIDATION / LLM JUDGE SUPPORT
+# ---------------------------------------------------------------------------------------------------------------
+
+# DeBERTa NLI verifier and Hugging Face model loading.
+transformers>=4.57.0
+sentencepiece>=0.2.0
+protobuf>=4.0
+diskcache>=5.6.1
+
+# llama-cpp-python is installed separately after verifying Linux CUDA wheel compatibility.
+

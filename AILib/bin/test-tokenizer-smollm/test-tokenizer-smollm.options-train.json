@@ -7,5 +7,6 @@
     "step_limit": 5,
     "eval_freq": 2,
     "single_gpu": true,
-    "override_data_folder": "bin/test-basic/data/Training"
+    "override_data_folder": "bin/test-basic/data/Training",
+    "precompute_total_steps": false
 }

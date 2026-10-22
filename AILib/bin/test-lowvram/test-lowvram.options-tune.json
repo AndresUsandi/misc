@@ -10,5 +10,6 @@
     "recompute_lmhead": true,
     "freeze_embeddings": true,
     "chunk_size": 128,
-    "eval_freq": 2
+    "eval_freq": 2,
+    "precompute_total_steps": true
 }

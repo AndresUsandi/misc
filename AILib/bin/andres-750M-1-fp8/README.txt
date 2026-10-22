@@ -1,0 +1,1 @@
+unlike previous smaller models, this model requires use_muon = true to fit within 16GB of VRAM. This could have an impact on the learning and overall quality of the model, so an A/B test is being conduced between andres-350M-2 and andres-350M-AB-muon to see if there are any major differences.

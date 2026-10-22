@@ -4,11 +4,10 @@
 import math
 from pathlib import Path
 import sys
-from typing import Any, List, Optional, Union
+from typing import Any, Callable, List, Optional, Union
 
 import torch
 import torch.nn as nn
-from torchao.optim import _AdamW
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -35,6 +34,24 @@ def set_optimizer_lr(optimizer: Union[torch.optim.Optimizer, List[torch.optim.Op
                 param_group["lr"] = target_lr
 
 
+def lr_schedule_from_resume(optimizer: Union[torch.optim.Optimizer, List[torch.optim.Optimizer]], start_step: int, planned_lr_at: Callable[[int], float], total_steps: int, warmup_steps: int, min_lr: float) -> Callable[[int], float]:
+    """Returns the lr(step) function a session should follow. Fresh runs, and resumes whose LR horizon is unchanged, follow planned_lr_at
+    (the warmup + cosine of the current plan). When the horizon moved since the checkpoint (an estimated step plan replaced by the exact
+    one, a different num_epochs, more or fewer files), the LR the checkpointed optimizer last applied (restored by load_state_dict) is no
+    longer on the new curve, so the run would jump; instead the cosine is re-anchored: it continues from that LR at start_step down to
+    min_lr at total_steps. Differences within 0.5% (one step of normal cosine slope) are ignored, as is an LR still at the constructor
+    peak (an optimizer whose state was not restored has nothing to continue from)."""
+    opts = optimizer if isinstance(optimizer, list) else [optimizer]
+    adamw = next((o for o in opts if o.__class__.__name__ != "CustomMuon"), None)
+    resumed_lr = float(adamw.param_groups[0]["lr"]) if adamw else None
+    planned = planned_lr_at(start_step)
+    if start_step <= 0 or start_step < warmup_steps or resumed_lr is None or resumed_lr == float(adamw.defaults["lr"]) or abs(resumed_lr - planned) <= 0.005 * max(planned, 1e-12):
+        return planned_lr_at
+    span = max(1, total_steps - start_step)
+    print(f"[Training Plan] LR horizon changed since the checkpoint: the new plan puts step {start_step:,} at {planned:.3e} but the run was at {resumed_lr:.3e}; continuing the cosine from {resumed_lr:.3e} down to {min_lr:.3e} over the remaining {span:,} update(s) instead of jumping.")
+    return lambda step: min_lr if step >= total_steps else min_lr + 0.5 * (resumed_lr - min_lr) * (1.0 + math.cos(math.pi * (step - start_step) / span))
+
+
 def zeropower_via_newtonschulz5(G: torch.Tensor, steps: int = 5, eps: float = 1e-7) -> torch.Tensor:
     """Newton-Schulz iteration to compute the zeroth power / orthogonalization of matrix G."""
     assert len(G.shape) == 2
@@ -54,9 +71,16 @@ def zeropower_via_newtonschulz5(G: torch.Tensor, steps: int = 5, eps: float = 1e
 
 class CustomMuon(torch.optim.Optimizer):
     """Muon optimizer for internal 2D weight matrices (Linear layers)."""
-    def __init__(self, params: Any, lr: float = 1e-3, momentum: float = 0.95, nesterov: bool = True, ns_steps: int = 5):
+    def __init__(self, params: Any, lr: float = 1e-3, momentum: float = 0.95, nesterov: bool = True, ns_steps: int = 5, momentum_dtype: Optional[torch.dtype] = None):
         defaults = dict(lr=lr, momentum=momentum, nesterov=nesterov, ns_steps=ns_steps)
         super().__init__(params, defaults)
+        self.momentum_dtype = momentum_dtype  # --use_bf16_for_muon_momentum; an attribute (not a param_group key) so it survives load_state_dict and the flag stays authoritative on resume
+
+    def load_state_dict(self, state_dict: dict) -> None:
+        super().load_state_dict(state_dict)  # casts every loaded buffer to the fp32 param dtype; re-cast right away so a resumed run keeps the bf16 saving
+        for s in self.state.values():
+            if self.momentum_dtype is not None and "momentum_buffer" in s:
+                s["momentum_buffer"] = s["momentum_buffer"].to(self.momentum_dtype)
 
     @torch.no_grad()
     def step(self) -> None:
@@ -74,7 +98,7 @@ class CustomMuon(torch.optim.Optimizer):
                     continue
 
                 state = self.state[p]
-                target_dtype = p.dtype if p.dtype in (torch.bfloat16, torch.float16, getattr(torch, "float8_e4m3fn", None)) else g.dtype
+                target_dtype = self.momentum_dtype if self.momentum_dtype is not None else (p.dtype if p.dtype in (torch.bfloat16, torch.float16, getattr(torch, "float8_e4m3fn", None)) else g.dtype)
                 if "momentum_buffer" not in state:
                     state["momentum_buffer"] = torch.zeros_like(g, dtype=target_dtype)
 
@@ -90,75 +114,7 @@ class CustomMuon(torch.optim.Optimizer):
                 u = zeropower_via_newtonschulz5(g_update.to(dtype=torch.float32), steps=ns_steps).to(dtype=p.dtype)
                 scaled_lr = lr * max(1.0, p.size(0) / p.size(1)) ** 0.5
                 p.data.add_(u, alpha=-scaled_lr)
-
-
-def _fp32_to_fp16_sr(x: torch.Tensor) -> torch.Tensor:
-    # float16 keeps the top 10 of float32's 23 mantissa bits: adding random low bits before truncating them rounds away from
-    # zero with probability (dropped bits) / 2^13. Values below float16's normal range (6.1e-5) still round to nearest.
-    rand = torch.randint(0, 1 << 13, x.shape, device=x.device, dtype=torch.int32)
-    return ((x.view(torch.int32) + rand) & -(1 << 13)).view(torch.float32).half()
-
-
-def _fp16_adamw_update(
-    p: torch.Tensor,
-    grad: torch.Tensor,
-    exp_avg: torch.Tensor,
-    exp_avg_sq: torch.Tensor,
-    step: float,
-    lr: float,
-    beta1: float,
-    beta2: float,
-    weight_decay: float,
-    eps: float
-) -> None:
-    grad_f32 = grad.float()
-    exp_avg_f32 = exp_avg.float().lerp_(grad_f32, 1 - beta1)
-    exp_avg_sq_f32 = exp_avg_sq.float().lerp_(grad_f32.square_(), 1 - beta2)
-    exp_avg.copy_(exp_avg_f32)
-    exp_avg_sq.copy_(exp_avg_sq_f32)
-    denom = exp_avg_sq_f32.sqrt_().div_(math.sqrt(1 - beta2 ** step)).add_(eps)
-    p.copy_(_fp32_to_fp16_sr(p.float().mul_(1 - lr * weight_decay).addcdiv_(exp_avg_f32, denom, value=-lr / (1 - beta1 ** step))))
-
-
-class Fp16AdamW(torch.optim.Optimizer):
-    """AdamW for float16 weights at fine-tuning/DPO learning rates: the float16 counterpart of torchao's bf16 stochastic rounding.
-
-    A plain float16 update is lost when it is smaller than half the gap to the neighboring float16 value (~0.000015 near 0.02,
-    ~0.001 near 1.0), which fine-tuning updates usually are, and float16 moments round squared gradients to zero. Here the
-    math runs in float32, the moments are stored as bfloat16 (float32's range at float16's size), and new weights are rounded
-    to float16 up or down at random, so small updates land correctly on average. Not torch.compile'd: Inductor skips bfloat16
-    graphs on the pre-Ampere GPUs that use float16 weights.
-    """
-    def __init__(self, params: Any, lr: float = 1e-3, betas: tuple = (0.9, 0.999), eps: float = 1e-8, weight_decay: float = 1e-2):
-        super().__init__(params, dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay))
-
-    @torch.no_grad()
-    def step(self) -> None:
-        for group in self.param_groups:
-            for p in group["params"]:
-                if p.grad is None:
-                    continue
-                state = self.state[p]
-                if not state:
-                    state["step"] = 0.0
-                    state["exp_avg"] = torch.zeros_like(p, dtype=torch.bfloat16)
-                    state["exp_avg_sq"] = torch.zeros_like(p, dtype=torch.bfloat16)
-                state["step"] += 1
-                # 4M-value slices bound the float32 temporaries (~80 MB) for the largest weights, e.g. the token embedding
-                for chunk in zip(*(t.view(-1).split(1 << 22) for t in (p, p.grad, state["exp_avg"], state["exp_avg_sq"]))):
-                    _fp16_adamw_update(*chunk, state["step"], group["lr"], *group["betas"], group["weight_decay"], group["eps"])
-
-    def load_state_dict(self, state_dict: dict) -> None:
-        super().load_state_dict(state_dict)  # casts the saved moments to the weights' float16, where they underflow again
-        params = [p for group in self.param_groups for p in group["params"]]
-        param_ids = [i for group in state_dict["param_groups"] for i in group["params"]]
-        for i, p in zip(param_ids, params):
-            saved = state_dict["state"].get(i, {})
-            for key in ("exp_avg", "exp_avg_sq"):
-                if key in saved:
-                    self.state[p][key] = saved[key].to(device=p.device, dtype=torch.bfloat16)
-            if "step" in saved:
-                self.state[p]["step"] = float(saved["step"])
+                p.grad = None
 
 
 def create_hybrid_optimizers(
@@ -167,21 +123,24 @@ def create_hybrid_optimizers(
     muon_lr: float = 1e-3,
     weight_decay: float = 0.1,
     use_adamw_only: bool = False,
-    fine_tuning: bool = False
+    fine_tuning: bool = False,
+    adamw8bit: bool = False,
+    muon_momentum_dtype: Optional[torch.dtype] = None,
 ) -> List[torch.optim.Optimizer]:
-    """Partitions model parameters into Muon (internal 2D weights) and Fused AdamW (1D / Embeddings / Norms)."""
-    raw_model = getattr(model, "raw_model", getattr(model, "module", model))
-    raw_model = getattr(raw_model, "_orig_mod", raw_model)
-
-    use_fused = torch.cuda.is_available() and hasattr(torch.optim.AdamW, "default_options")
+    """Partitions model parameters into Muon (internal 2D weights) and Fused AdamW (1D / Embeddings / Norms). The weights are fp32 masters
+    (gptio.precision), so plain fused AdamW is exact at every learning rate; no stochastic-rounding variants are needed.
+    adamw8bit (--use_torchao_adamw8bit): torchao AdamW8bit in place of AdamW, same update with the moments stored block-quantized to 8 bits."""
+    use_fused = torch.cuda.is_available()
+    if adamw8bit:
+        from torchao.optim import AdamW8bit
 
     if use_adamw_only:
-        has_fp16 = any(p.dtype == torch.float16 for p in model.parameters() if p.requires_grad)
-        adamw_eps = 1e-4 if has_fp16 else 1e-8
+        if adamw8bit:
+            return [AdamW8bit(model.parameters(), lr=adamw_lr, weight_decay=weight_decay)]
         try:
-            return [torch.optim.AdamW(model.parameters(), lr=adamw_lr, weight_decay=weight_decay, eps=adamw_eps, fused=use_fused)]
+            return [torch.optim.AdamW(model.parameters(), lr=adamw_lr, weight_decay=weight_decay, fused=use_fused)]
         except Exception:
-            return [torch.optim.AdamW(model.parameters(), lr=adamw_lr, weight_decay=weight_decay, eps=adamw_eps)]
+            return [torch.optim.AdamW(model.parameters(), lr=adamw_lr, weight_decay=weight_decay)]
 
     muon_params = []
     adamw_params = []
@@ -196,24 +155,34 @@ def create_hybrid_optimizers(
 
     optimizers = []
     if muon_params:
-        optimizers.append(CustomMuon(muon_params, lr=muon_lr, momentum=0.95))
+        optimizers.append(CustomMuon(muon_params, lr=muon_lr, momentum=0.95, momentum_dtype=muon_momentum_dtype))
 
-    if adamw_params:
-        has_fp16 = any(p.dtype == torch.float16 for p in adamw_params)
-        adamw_eps = 1e-4 if has_fp16 else 1e-8
-        if fine_tuning and adamw_params[0].dtype == torch.bfloat16:
-            print("[Optimizer] AdamW part (1D/Norms/Embeddings) uses bf16 stochastic rounding (torchao) for small fine-tuning learning rates.")
-            optimizers.append(_AdamW(adamw_params, lr=adamw_lr, weight_decay=weight_decay, eps=adamw_eps, bf16_stochastic_round=True))
-        elif fine_tuning and has_fp16:
-            print("[Optimizer] AdamW part (1D/Norms/Embeddings) uses fp16 stochastic rounding (fp32 math, bf16 moments) for small fine-tuning learning rates.")
-            optimizers.append(Fp16AdamW(adamw_params, lr=adamw_lr, weight_decay=weight_decay))
-        else:
-            try:
-                optimizers.append(torch.optim.AdamW(adamw_params, lr=adamw_lr, weight_decay=weight_decay, eps=adamw_eps, fused=use_fused))
-            except Exception:
-                optimizers.append(torch.optim.AdamW(adamw_params, lr=adamw_lr, weight_decay=weight_decay, eps=adamw_eps))
+    if adamw_params and adamw8bit:
+        optimizers.append(AdamW8bit(adamw_params, lr=adamw_lr, weight_decay=weight_decay))
+    elif adamw_params:
+        try:
+            optimizers.append(torch.optim.AdamW(adamw_params, lr=adamw_lr, weight_decay=weight_decay, fused=use_fused))
+        except Exception:
+            optimizers.append(torch.optim.AdamW(adamw_params, lr=adamw_lr, weight_decay=weight_decay))
 
     return optimizers
+
+
+def freeze_lower_layers(model: nn.Module, below_layer: int) -> None:
+    """--dpo_freeze_below_layer: marks the embeddings (token, position, the tied output head) and transformer blocks 0..below_layer-1 as not
+    trainable, on the model and on every data-parallel compute copy (they mirror the masters' flags only when they are built). Call before
+    the optimizer is created: it collects the parameters that still require gradients."""
+    frozen = ("tok_emb.", "pos_emb.", "out_head.") + tuple(f"trf_blocks.{i}." for i in range(below_layer))
+    copies = {id(m): m for m in [getattr(model, "raw_model", getattr(model, "module", model))] + list(getattr(model, "raw_replicas", []))}
+    n_frozen = n_total = 0
+    for m in copies.values():
+        m = getattr(m, "_orig_mod", m)
+        for name, p in m.named_parameters():
+            if name.startswith(frozen):
+                p.requires_grad_(False)
+    for name, p in next(iter(copies.values())).named_parameters():
+        n_total += p.numel(); n_frozen += p.numel() if not p.requires_grad else 0
+    print(f"[DPO Freeze] Embeddings and transformer blocks 0-{below_layer - 1} frozen: {n_frozen:,} of {n_total:,} parameters ({100 * n_frozen / n_total:.0f}%) stay at their SFT values; blocks {below_layer}.. and the final norm train.")
 
 
 def setup_stage_optimizer(
@@ -224,16 +193,20 @@ def setup_stage_optimizer(
 ) -> Union[torch.optim.Optimizer, List[torch.optim.Optimizer]]:
     """Instantiates and configures optimizer(s) appropriately for pretraining, fine-tuning, or optimization."""
     stage = args.stage
+    muon_momentum_dtype = torch.bfloat16 if args.use_bf16_for_muon_momentum else None
+    if args.use_bf16_for_muon_momentum and args.use_muon:
+        print("[Low-VRAM Optimization] Muon momentum buffers stored in bf16 (halves the Muon optimizer state; weights and Newton-Schulz stay fp32).")
     if stage == STAGE_TRAIN:
         use_adamw_only = not args.use_muon
         optimizers = create_hybrid_optimizers(
             target_model, adamw_lr=args.learning_rate, muon_lr=args.muon_lr, weight_decay=args.weight_decay,
-            use_adamw_only=use_adamw_only
+            use_adamw_only=use_adamw_only, adamw8bit=args.use_torchao_adamw8bit, muon_momentum_dtype=muon_momentum_dtype
         )
+        adamw_name = "torchao AdamW8bit (8-bit moments)" if args.use_torchao_adamw8bit else "Fused AdamW"
         if use_adamw_only:
-            print("Optimizer Configured: 1 ([Single Fused AdamW for all layers, default])")
+            print(f"Optimizer Configured: 1 ([Single {adamw_name} for all layers{', default' if not args.use_torchao_adamw8bit else ''}])")
         else:
-            print(f"Optimizers Configured: {len(optimizers)} ([CustomMuon (2D matrices), Fused AdamW (1D/Norms)])")
+            print(f"Optimizers Configured: {len(optimizers)} ([CustomMuon (2D matrices), {adamw_name} (1D/Norms)])")
         return optimizers
 
     # SFT or DPO
@@ -248,32 +221,18 @@ def setup_stage_optimizer(
             muon_lr=args.muon_lr,
             weight_decay=args.weight_decay,
             use_adamw_only=False,
-            fine_tuning=True
+            fine_tuning=True,
+            adamw8bit=args.use_torchao_adamw8bit,
+            muon_momentum_dtype=muon_momentum_dtype,
         )
 
-    use_fused = use_cuda and hasattr(torch.optim.AdamW, "default_options")
+    use_fused = use_cuda
     target_params = [p for p in target_model.parameters() if p.requires_grad]
-    has_fp16 = any(p.dtype == torch.float16 for p in target_params)
-    adamw_eps = 1e-4 if has_fp16 else 1e-8
-    if stage != STAGE_TRAIN and weight_dtype == torch.bfloat16:
-        print("[Optimizer] AdamW with bf16 stochastic rounding (torchao) for small fine-tuning learning rates.")
-        return _AdamW(target_params, lr=args.learning_rate, weight_decay=args.weight_decay, eps=adamw_eps, bf16_stochastic_round=True)
-    elif stage != STAGE_TRAIN and weight_dtype == torch.float16:
-        print("[Optimizer] AdamW with fp16 stochastic rounding (fp32 math, bf16 moments) for small fine-tuning learning rates.")
-        return Fp16AdamW(target_params, lr=args.learning_rate, weight_decay=args.weight_decay)
-    else:
-        try:
-            return torch.optim.AdamW(
-                target_params,
-                lr=args.learning_rate,
-                weight_decay=args.weight_decay,
-                eps=adamw_eps,
-                fused=use_fused
-            )
-        except Exception:
-            return torch.optim.AdamW(
-                target_params,
-                lr=args.learning_rate,
-                weight_decay=args.weight_decay,
-                eps=adamw_eps
-            )
+    if args.use_torchao_adamw8bit and use_cuda:
+        from torchao.optim import AdamW8bit
+        print("[Optimizer] Selected torchao AdamW8bit (AdamW with 8-bit block-quantized moments, fp32 masters).")
+        return AdamW8bit(target_params, lr=args.learning_rate, weight_decay=args.weight_decay)
+    try:
+        return torch.optim.AdamW(target_params, lr=args.learning_rate, weight_decay=args.weight_decay, fused=use_fused)
+    except Exception:
+        return torch.optim.AdamW(target_params, lr=args.learning_rate, weight_decay=args.weight_decay)

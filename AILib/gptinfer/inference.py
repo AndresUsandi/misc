@@ -148,6 +148,16 @@ class SafeTokenizerWrapper:
 
         raise RuntimeError(f"Underlying tokenizer object {type(self.base_tokenizer)} does not have an 'encode' method.")
 
+    def encode_batch(self, texts: List[str], allowed_special: Any = "all") -> List[List[int]]:
+        """Encodes many texts at once: tiktoken and Hugging Face tokenizers run their batch encoders in parallel threads (the GIL released); others encode one by one."""
+        if hasattr(self.base_tokenizer, "encode_batch"):
+            try:
+                res = self.base_tokenizer.encode_batch(texts, allowed_special=allowed_special)
+            except TypeError:
+                res = self.base_tokenizer.encode_batch(texts)
+            return [r.ids if hasattr(r, "ids") else r for r in res]
+        return [self.encode(t, allowed_special=allowed_special) for t in texts]
+
     def decode(self, token_ids: Any, errors: str = "replace", skip_special_tokens: bool = False) -> str:
         if isinstance(token_ids, torch.Tensor):
             token_ids = token_ids.squeeze().tolist()
@@ -328,11 +338,14 @@ def _sample_next_token(
     repetition_penalty: float = 1.0,
     seen_tokens: Optional[torch.Tensor] = None,
     exempt_tokens: Optional[torch.Tensor] = None,
+    no_repeat_ngram: int = 0,
+    generated_tokens: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
     """
-    Samples the next token from model logits with repetition penalty, entropy-adaptive temperature,
+    Samples the next token from model logits with repetition penalty, exact-repeat (no-repeat n-gram) ban, entropy-adaptive temperature,
     top-k filtering, top-p nucleus filtering, min-p dynamic tail cutoff, and numerically stable sampling.
-    Special tokens (e.g. <|...|>) in exempt_tokens are strictly excluded from repetition penalty.
+    Special tokens (e.g. <|...|>) in exempt_tokens are strictly excluded from repetition penalty and from the n-gram ban.
+    generated_tokens: the reply generated so far (prompt excluded), the only text the n-gram ban looks at.
     """
     logits_step = logits[:, -1] if logits.ndim == 3 else logits
     if hasattr(torch, "float8_e4m3fn") and logits_step.dtype in (torch.float8_e4m3fn, getattr(torch, "float8_e5m2", None)):
@@ -351,6 +364,25 @@ def _sample_next_token(
             score = torch.gather(logits_step, 1, unique_seen)
             score = torch.where(score < 0, score * repetition_penalty, score / repetition_penalty)
             logits_step = logits_step.scatter(1, unique_seen, score)
+
+    if no_repeat_ngram and generated_tokens is not None and generated_tokens.shape[-1] >= no_repeat_ngram:
+        # Exact-repeat ban: a token that would complete an n-gram already present in the reply is excluded outright, so a verbatim
+        # phrase or sentence loop cannot form while ordinary word reuse stays allowed. A hard ban (unlike repetition_penalty's soft
+        # tax) over the generated tokens only, never the prompt.
+        gen = generated_tokens.to(logits_step.device)
+        n = int(no_repeat_ngram)
+        hit_count = torch.zeros(gen.shape[0], logits_step.shape[-1], dtype=torch.int32, device=logits_step.device)  # fixed shapes: no GPU sync per step
+        for b in range(gen.shape[0]):
+            row = gen[b]
+            if n == 1:
+                followers, hits = row, torch.ones_like(row, dtype=torch.int32)
+            else:
+                windows = row.unfold(0, n - 1, 1)[:-1]  # every (n-1)-gram that has a following token
+                followers, hits = row[n - 1:], (windows == row[-(n - 1):]).all(dim=1).to(torch.int32)  # the tokens that followed earlier copies of the current (n-1)-gram
+            hit_count[b].index_add_(0, followers, hits)
+        if exempt_tokens is not None and exempt_tokens.numel() > 0:
+            hit_count[:, exempt_tokens.to(logits_step.device)] = 0
+        logits_step = logits_step.masked_fill(hit_count > 0, float("-inf"))
 
     if temperature <= 0.0 and not adaptive_temp:
         return torch.argmax(logits_step, dim=-1, keepdim=True)
@@ -421,7 +453,8 @@ def generate_text(
     eos_id: Any = None,
     stream_callback: Optional[Any] = None,
     stop_strings: Optional[List[str]] = None,
-    tokenizer: Optional[Any] = None
+    tokenizer: Optional[Any] = None,
+    no_repeat_ngram: int = 0,
 ) -> torch.Tensor:
     """
     High-performance text generation function supporting:
@@ -557,7 +590,7 @@ def generate_text(
 
                     static_attn_mask[:, :, :, :prompt_len] = 0.0
                     static_pos_ids[0, 0] = prompt_len
-                    static_next_idx.copy_(_sample_next_token(logits, temperature, top_k, top_p, min_p, adaptive_temp, temp_min, temp_max, repetition_penalty, out_tokens[:, :prompt_len], exempt_tokens=exempt_tokens_tensor))
+                    static_next_idx.copy_(_sample_next_token(logits, temperature, top_k, top_p, min_p, adaptive_temp, temp_min, temp_max, repetition_penalty, out_tokens[:, :prompt_len], exempt_tokens=exempt_tokens_tensor, no_repeat_ngram=no_repeat_ngram, generated_tokens=out_tokens[:, prompt_len:cur_pos]))
 
                     # Warmup execution with static GPU memory buffers
                     s = torch.cuda.Stream()
@@ -580,7 +613,7 @@ def generate_text(
 
             if graph_captured:
                 for _ in range(max_new_tokens):
-                    next_idx = _sample_next_token(logits, temperature, top_k, top_p, min_p, adaptive_temp, temp_min, temp_max, repetition_penalty, out_tokens[:, :cur_pos], exempt_tokens=exempt_tokens_tensor)
+                    next_idx = _sample_next_token(logits, temperature, top_k, top_p, min_p, adaptive_temp, temp_min, temp_max, repetition_penalty, out_tokens[:, :cur_pos], exempt_tokens=exempt_tokens_tensor, no_repeat_ngram=no_repeat_ngram, generated_tokens=out_tokens[:, prompt_len:cur_pos])
                     if is_eos(next_idx):
                         break
                     out_tokens[:, cur_pos:cur_pos+1] = next_idx
@@ -599,7 +632,7 @@ def generate_text(
             else:
                 # Standard static KV cache step decoding
                 for _ in range(max_new_tokens):
-                    next_idx = _sample_next_token(logits, temperature, top_k, top_p, min_p, adaptive_temp, temp_min, temp_max, repetition_penalty, out_tokens[:, :cur_pos], exempt_tokens=exempt_tokens_tensor)
+                    next_idx = _sample_next_token(logits, temperature, top_k, top_p, min_p, adaptive_temp, temp_min, temp_max, repetition_penalty, out_tokens[:, :cur_pos], exempt_tokens=exempt_tokens_tensor, no_repeat_ngram=no_repeat_ngram, generated_tokens=out_tokens[:, prompt_len:cur_pos])
                     if is_eos(next_idx):
                         break
                     out_tokens[:, cur_pos:cur_pos+1] = next_idx
@@ -618,7 +651,7 @@ def generate_text(
                     logits = model(input_chunk, use_cache=False)
                 else:
                     logits = model(input_chunk)
-                next_idx = _sample_next_token(logits, temperature, top_k, top_p, min_p, adaptive_temp, temp_min, temp_max, repetition_penalty, out_tokens[:, :cur_pos], exempt_tokens=exempt_tokens_tensor)
+                next_idx = _sample_next_token(logits, temperature, top_k, top_p, min_p, adaptive_temp, temp_min, temp_max, repetition_penalty, out_tokens[:, :cur_pos], exempt_tokens=exempt_tokens_tensor, no_repeat_ngram=no_repeat_ngram, generated_tokens=out_tokens[:, prompt_len:cur_pos])
                 if is_eos(next_idx):
                     break
                 out_tokens[:, cur_pos:cur_pos+1] = next_idx

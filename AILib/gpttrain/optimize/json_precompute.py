@@ -30,7 +30,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from argsutil import TrainingArgs
 from gptmodel.GptModel import GptModel
-from gpttrain.train.training import (
+from gpttrain.train.evaluation import (
     text_to_token_ids,
     token_ids_to_text,
 )
@@ -39,7 +39,9 @@ from gptmodel.Dataset import (
 )
 from gpttrain.optimize.dpo_loss import (
     compute_logprobs,
+    compute_logprobs_chunked,
     compute_dpo_loss,
+    split_dpo_backward,
 )
 from gpttrain.plots import plot_dpo_losses_and_margins
 from gpttrain.optimize.scheduler import get_cosine_lr_with_warmup
@@ -51,11 +53,11 @@ from gptio.checkpoint import (
 from gptio.modelio import save_model
 from gptio.pathutil import resolve_path, TARGET_PLOT, STAGE_OPTIMIZE, STAGE_TUNE
 from gptio.precision import create_grad_scaler
-from gpttrain.optimizer import set_optimizer_lr
+from gpttrain.optimizer import lr_schedule_from_resume, set_optimizer_lr
 from gptutils.consoleutils import (
     print,
     print_eta,
-    format_vram_str,
+    format_vram_report,
     print_gpu_memory_breakdown,
     print_step_telemetry,
 )
@@ -433,11 +435,18 @@ def compute_dpo_loss_batch_precomputed(
     amp_dtype: Optional[torch.dtype] = None,
     activation_checkpointing: bool = False,
     use_amp: Optional[bool] = None,
+    chunk_size: int = 256,
+    backward_accum_steps: Optional[int] = None,
+    scaler: Optional[Any] = None,
+    sft_weight: float = 0.0,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Computes DPO loss for a batch using precomputed reference log-probabilities.
     Only executes forward passes for the trainable policy model!
+    backward_accum_steps: when given, also runs the (scaled, accumulation-divided) split backward and returns a detached loss.
     """
+    if hasattr(policy_model, "forward_backward_dpo"):  # MultiGpuGptModelDP / ZeRO-1: the pairs are split across the GPUs, each scoring its share with its own policy copy
+        return policy_model.forward_backward_dpo(batch, compute_dpo_loss_batch_precomputed, amp_dtype=amp_dtype, beta=beta, activation_checkpointing=activation_checkpointing, use_amp=use_amp, chunk_size=chunk_size, backward_accum_steps=backward_accum_steps, scaler=scaler, sft_weight=sft_weight)
     chosen_in = batch["chosen"].to(policy_device)
     chosen_mask = batch["chosen_mask"].to(policy_device)
     rejected_in = batch["rejected"].to(policy_device)
@@ -446,25 +455,18 @@ def compute_dpo_loss_batch_precomputed(
     use_cuda = policy_device.type == "cuda"
     if use_amp is None:
         use_amp = (use_cuda and amp_dtype is not None and amp_dtype != torch.float32)
-    autocast_ctx = torch.amp.autocast(device_type="cuda", dtype=amp_dtype) if (use_amp and amp_dtype is not None) else nullcontext()  # type: ignore
+    autocast_ctx = torch.amp.autocast(device_type="cuda", dtype=amp_dtype, cache_enabled=False) if (use_amp and amp_dtype is not None) else nullcontext()  # type: ignore
+    policy_forward = getattr(policy_model, "compiled_forward_features", policy_model.forward_features)  # --compile (model_setup) attaches the compiled variant
 
     # Policy model forward passes
     with autocast_ctx:
-        policy_chosen_logits = policy_model(chosen_in, activation_checkpointing=activation_checkpointing)
-        policy_chosen_logprobs = compute_logprobs(
-            logits=policy_chosen_logits,
-            labels=chosen_in,
-            selection_mask=chosen_mask
-        )
-        del policy_chosen_logits
+        policy_chosen_hidden = policy_forward(chosen_in, activation_checkpointing=activation_checkpointing)
+        policy_chosen_logprobs = compute_logprobs_chunked(policy_chosen_hidden, chosen_in, chosen_mask, policy_model.out_head, chunk_size)
+        del policy_chosen_hidden
 
-        policy_rejected_logits = policy_model(rejected_in, activation_checkpointing=activation_checkpointing)
-        policy_rejected_logprobs = compute_logprobs(
-            logits=policy_rejected_logits,
-            labels=rejected_in,
-            selection_mask=rejected_mask
-        )
-        del policy_rejected_logits
+        policy_rejected_hidden = policy_forward(rejected_in, activation_checkpointing=activation_checkpointing)
+        policy_rejected_logprobs = compute_logprobs_chunked(policy_rejected_hidden, rejected_in, rejected_mask, policy_model.out_head, chunk_size)
+        del policy_rejected_hidden
 
     ref_chosen_logprobs = batch["ref_chosen_logprob"].to(policy_device)
     ref_rejected_logprobs = batch["ref_rejected_logprob"].to(policy_device)
@@ -474,8 +476,12 @@ def compute_dpo_loss_batch_precomputed(
         model_rejected_logprobs=policy_rejected_logprobs,
         reference_chosen_logprobs=ref_chosen_logprobs,
         reference_rejected_logprobs=ref_rejected_logprobs,
-        beta=beta
+        beta=beta,
+        sft_weight=sft_weight,
     )
+
+    if backward_accum_steps is not None:
+        loss = split_dpo_backward(loss, policy_chosen_logprobs, policy_rejected_logprobs, backward_accum_steps, scaler)
 
     return loss, chosen_rewards, rejected_rewards, reward_margins, accuracy
 
@@ -488,6 +494,7 @@ def evaluate_dpo_loader_precomputed(
     num_batches: Optional[int] = None,
     amp_dtype: Optional[torch.dtype] = None,
     use_amp: Optional[bool] = None,
+    sft_weight: float = 0.0,
 ) -> Dict[str, float]:
     """
     Evaluates average DPO loss, reward margin, and accuracy using precomputed reference logprobs.
@@ -515,6 +522,7 @@ def evaluate_dpo_loader_precomputed(
                 amp_dtype=amp_dtype,
                 activation_checkpointing=False,
                 use_amp=use_amp,
+                sft_weight=sft_weight,
             )
             tot_loss += loss.item()
             tot_chosen += chosen_rewards.item()
@@ -589,7 +597,8 @@ def train_model_dpo_precomputed(
     global_total_steps = effective_steps_in_epoch * args.num_epochs
     warmup_steps = int(global_total_steps * args.warmup_ratio)
 
-    print(f"\n[Precomputed DPO Plan] Target epochs: {args.num_epochs} | Steps per epoch: {total_steps_in_epoch:,} (Updates: {effective_steps_in_epoch:,}) | Total updates: {global_total_steps:,}")
+    print(f"\n[Precomputed DPO Plan] Target epochs: {args.num_epochs} | Steps per epoch: {total_steps_in_epoch:,} (Updates: {effective_steps_in_epoch:,}) | Total updates: {global_total_steps:,} | Step plan: exact (precomputed JSON, fixed batch size)")
+    lr_at = lr_schedule_from_resume(optimizer, start_step, lambda s: get_cosine_lr_with_warmup(s, warmup_steps, global_total_steps, args.learning_rate, args.min_lr), global_total_steps, warmup_steps, args.min_lr)
     print(f"[Precomputed DPO Mode] Reference model bypassed entirely! Running single-model policy optimization.")
     if target_step is not None:
         print(f"[DPO Plan] Resumed from step {start_step}. Training for {args.step_limit} steps -> Target step: {target_step}.")
@@ -602,16 +611,16 @@ def train_model_dpo_precomputed(
     use_cuda = (device.type == "cuda")
     if use_amp is None:
         use_amp = (use_cuda and amp_dtype is not None and amp_dtype != torch.float32)
-    scaler = create_grad_scaler(policy_model, device, use_amp=use_amp, amp_dtype=amp_dtype, fine_tuning=True)
+    scaler = create_grad_scaler(policy_model, device, use_amp=use_amp, amp_dtype=amp_dtype)
 
     # Initial evaluation
     print("\n[Initial State Evaluation]")
     t_init_eval_start = time.time()
-    init_tr = evaluate_dpo_loader_precomputed(train_loader, policy_model, args.beta, device, args.eval_iter, amp_dtype=amp_dtype, use_amp=use_amp)
-    init_val = evaluate_dpo_loader_precomputed(val_loader, policy_model, args.beta, device, args.eval_iter, amp_dtype=amp_dtype, use_amp=use_amp)
+    init_tr = evaluate_dpo_loader_precomputed(train_loader, policy_model, args.beta, device, args.eval_iter, amp_dtype=amp_dtype, use_amp=use_amp, sft_weight=args.dpo_sft_weight)
+    init_val = evaluate_dpo_loader_precomputed(val_loader, policy_model, args.beta, device, args.eval_iter, amp_dtype=amp_dtype, use_amp=use_amp, sft_weight=args.dpo_sft_weight)
     init_eval_time = time.time() - t_init_eval_start
-    print(f"  Initial Train Loss : {init_tr['loss']:.4f} | Margin: {init_tr['margin']:+.4f} | Acc: {init_tr['accuracy'] * 100:.1f}%")
-    print(f"  Initial Val Loss   : {init_val['loss']:.4f} | Margin: {init_val['margin']:+.4f} | Acc: {init_val['accuracy'] * 100:.1f}% (Eval took {init_eval_time:.2f}s)")
+    print(f"  Initial Train Loss : {init_tr['loss']:.4f} | Margin: {init_tr['margin']:+.4f} | Chosen vs ref: {init_tr['chosen_reward']:+.4f} | Acc: {init_tr['accuracy'] * 100:.1f}%")
+    print(f"  Initial Val Loss   : {init_val['loss']:.4f} | Margin: {init_val['margin']:+.4f} | Chosen vs ref: {init_val['chosen_reward']:+.4f} | Acc: {init_val['accuracy'] * 100:.1f}% (Eval took {init_eval_time:.2f}s)")
 
     start_time = time.time()
     def get_current_accum_time() -> float:
@@ -652,19 +661,15 @@ def train_model_dpo_precomputed(
                     batch=batch,
                     policy_model=policy_model,
                     beta=args.beta,
+                    sft_weight=args.dpo_sft_weight,
                     policy_device=device,
                     amp_dtype=amp_dtype,
                     activation_checkpointing=args.activation_checkpointing,
                     use_amp=use_amp,
+                    chunk_size=args.chunk_size,
+                    backward_accum_steps=args.accum_steps,
+                    scaler=scaler,
                 )
-
-                if args.accum_steps > 1:
-                    loss = loss / args.accum_steps
-
-                if scaler:
-                    scaler.scale(loss).backward()
-                else:
-                    loss.backward()
 
                 del loss
 
@@ -677,34 +682,42 @@ def train_model_dpo_precomputed(
                 if is_accum_step:
                     global_step += 1
 
-                    current_lr = get_cosine_lr_with_warmup(global_step, warmup_steps, global_total_steps, args.learning_rate, args.min_lr)
+                    if hasattr(policy_model, "reduce_gradients"):  # data parallelism: average the copies' accumulated gradients onto the masters
+                        policy_model.reduce_gradients()
+
+                    current_lr = lr_at(global_step)
                     set_optimizer_lr(optimizer, current_lr)
 
                     if scaler:
                         if isinstance(optimizer, list):
                             for opt in optimizer:
                                 scaler.unscale_(opt)
-                            torch.nn.utils.clip_grad_norm_(raw_policy.parameters(), max_norm=1.0)
+                            torch.nn.utils.clip_grad_norm_(policy_model.parameters(), max_norm=1.0)  # the wrapper's parameters: under ZeRO-1 the averaged gradients live on the shard masters
                             for opt in optimizer:
                                 scaler.step(opt)
                         else:
                             scaler.unscale_(optimizer)
-                            torch.nn.utils.clip_grad_norm_(raw_policy.parameters(), max_norm=1.0)
+                            torch.nn.utils.clip_grad_norm_(policy_model.parameters(), max_norm=1.0)
                             scaler.step(optimizer)
                         scaler.update()
                     else:
-                        torch.nn.utils.clip_grad_norm_(raw_policy.parameters(), max_norm=1.0)
+                        torch.nn.utils.clip_grad_norm_(policy_model.parameters(), max_norm=1.0)
                         if isinstance(optimizer, list):
                             for opt in optimizer:
                                 opt.step()
                         else:
                             optimizer.step()
 
+                    if hasattr(policy_model, "sync_weights"):
+                        policy_model.sync_weights()
+
                     if isinstance(optimizer, list):
                         for opt in optimizer:
                             opt.zero_grad()
                     else:
                         optimizer.zero_grad()
+                    if hasattr(policy_model, "raw_replicas"):
+                        policy_model.zero_grad(set_to_none=True)
 
                 t_step_end = time.time()
                 step_duration = t_step_end - t_step_start
@@ -719,11 +732,11 @@ def train_model_dpo_precomputed(
                     interval_train_time = 0.0
 
                     lr_val = optimizer[0].param_groups[0]["lr"] if isinstance(optimizer, list) else optimizer.param_groups[0]["lr"]
-                    vram_str = format_vram_str(device)
+                    vram_str = format_vram_report(policy_model, optimizer, device)
 
                     t_eval_start = time.time()
-                    eval_tr = evaluate_dpo_loader_precomputed(train_loader, policy_model, args.beta, device, args.eval_iter, amp_dtype=amp_dtype, use_amp=use_amp)
-                    eval_val = evaluate_dpo_loader_precomputed(val_loader, policy_model, args.beta, device, args.eval_iter, amp_dtype=amp_dtype, use_amp=use_amp)
+                    eval_tr = evaluate_dpo_loader_precomputed(train_loader, policy_model, args.beta, device, args.eval_iter, amp_dtype=amp_dtype, use_amp=use_amp, sft_weight=args.dpo_sft_weight)
+                    eval_val = evaluate_dpo_loader_precomputed(val_loader, policy_model, args.beta, device, args.eval_iter, amp_dtype=amp_dtype, use_amp=use_amp, sft_weight=args.dpo_sft_weight)
                     eval_duration = time.time() - t_eval_start
 
                     train_losses.append(eval_tr["loss"])
@@ -750,6 +763,8 @@ def train_model_dpo_precomputed(
                         vram_str=vram_str,
                         train_margin=eval_tr["margin"],
                         val_margin=eval_val["margin"],
+                        train_chosen=eval_tr["chosen_reward"],
+                        val_chosen=eval_val["chosen_reward"],
                         train_acc=eval_tr["accuracy"],
                         val_acc=eval_val["accuracy"],
                         lr_precision=7,
@@ -774,8 +789,8 @@ def train_model_dpo_precomputed(
                                     model=policy_model, idx=encoded, max_new_tokens=64,
                                     context_size=context_size, eos_id=tokenizer.eos_id, temperature=0.0
                                 )
-                            gen_str = token_ids_to_text(gen_ids, tokenizer)
-                            ans = gen_str[len(sample_prompt):].replace("### Response:", "").strip()
+                            gen_str = token_ids_to_text(gen_ids[:, encoded.shape[1]:], tokenizer)  # the new tokens only: slicing the decoded text by len(sample_prompt) breaks when the decode differs from the prompt text
+                            ans = gen_str.replace("### Response:", "").strip()
                             print(f"  [Sample Response]: {ans.replace(chr(10), ' ')[:130]}")
                         policy_model.train()
 
@@ -840,8 +855,8 @@ def train_model_dpo_precomputed(
                         model=policy_model, idx=encoded, max_new_tokens=100,
                         context_size=context_size, eos_id=tokenizer.eos_id, temperature=0.0
                     )
-                gen_str = token_ids_to_text(gen_ids, tokenizer)
-                ans = gen_str[len(sample_prompt):].replace("### Response:", "").strip()
+                gen_str = token_ids_to_text(gen_ids[:, encoded.shape[1]:], tokenizer)  # the new tokens only: slicing the decoded text by len(sample_prompt) breaks when the decode differs from the prompt text
+                ans = gen_str.replace("### Response:", "").strip()
                 clean_instr = sample_prompt.replace("Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction:\n", "").strip()
                 print("\n" + "-" * 70)
                 print(f"[Sample Model Response @ Epoch {epoch+1}]")
@@ -851,7 +866,7 @@ def train_model_dpo_precomputed(
                 print("-" * 70)
             policy_model.train()
 
-            print_gpu_memory_breakdown()
+            print_gpu_memory_breakdown(policy_model, optimizer)
             print_eta(start_time, epoch_start_time, (epoch - start_epoch + 1), (args.num_epochs - start_epoch))
 
             if stopped_due_to_limit:

@@ -9,5 +9,6 @@
     "single_gpu": true,
     "precision": "fp8",
     "compile": true,
-    "coordinate_descent_tuning": true
+    "coordinate_descent_tuning": true,
+    "precompute_total_steps": false
 }

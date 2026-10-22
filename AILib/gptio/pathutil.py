@@ -9,14 +9,15 @@ if TYPE_CHECKING:  # argsutil imports this module, so only the type checker sees
     from argsutil import ModelArgs
 
 CHECKPOINT_EXT: str = ".chk"
-CHECKPOINT_TRN_EXT: str = ".trn.chk"
-CHECKPOINT_SFT_EXT: str = ".sft.chk"
-CHECKPOINT_DPO_EXT: str = ".dpo.chk"
+CHECKPOINT_TRN_EXT: str = ".chk.trn"
+CHECKPOINT_SFT_EXT: str = ".chk.sft"
+CHECKPOINT_DPO_EXT: str = ".chk.dpo"
 CHECKPOINT_TMP_SUFFIX: str = ".tmp"
 CHECKPOINT_SWAP_SUFFIX: str = ".tmp2"
 CHECKPOINT_BAK_SUFFIX: str = ".bak"
 MODEL_EXT: str = ".pth"
 MODEL_ALT_EXT: str = ".pt"
+GGUF_EXT: str = ".gguf"
 
 TARGET_ROOT: str = "root"
 TARGET_DATA: str = "data"
@@ -37,6 +38,7 @@ STAGE_INFER: str = "infer"
 
 MULTI_GPU_PP: str = "parallel-pipeline"
 MULTI_GPU_DP: str = "data-parallelism"
+MULTI_GPU_DP_ZERO1: str = "data-parallelism-zero1"
 
 
 def clean_model_name(model_name: str) -> str:
@@ -46,10 +48,10 @@ def clean_model_name(model_name: str) -> str:
         "-loss-plot-train.pdf", "-loss-plot-tune.pdf", "-loss-plot-optimize.pdf", "-loss-plot.pdf",
         ".model-params.json", ".model-param.json",
         ".options-train.json", ".options-tune.json", ".options-optimize.json", ".options-infer.json", ".options.json",
-        ".trn.chk.tmp2", ".trn.chk.tmp", ".trn.chk",
-        ".sft.chk.tmp2", ".sft.chk.tmp", ".sft.chk",
-        ".dpo.chk.tmp2", ".dpo.chk.tmp", ".dpo.chk",
-        ".pth.tmp2", ".pth.tmp", ".chk", ".pth", ".pt", ".json",
+        f"{CHECKPOINT_TRN_EXT}{CHECKPOINT_SWAP_SUFFIX}", f"{CHECKPOINT_TRN_EXT}{CHECKPOINT_TMP_SUFFIX}", CHECKPOINT_TRN_EXT,
+        f"{CHECKPOINT_SFT_EXT}{CHECKPOINT_SWAP_SUFFIX}", f"{CHECKPOINT_SFT_EXT}{CHECKPOINT_TMP_SUFFIX}", CHECKPOINT_SFT_EXT,
+        f"{CHECKPOINT_DPO_EXT}{CHECKPOINT_SWAP_SUFFIX}", f"{CHECKPOINT_DPO_EXT}{CHECKPOINT_TMP_SUFFIX}", CHECKPOINT_DPO_EXT,
+        f"{MODEL_EXT}{CHECKPOINT_SWAP_SUFFIX}", f"{MODEL_EXT}{CHECKPOINT_TMP_SUFFIX}", CHECKPOINT_EXT, MODEL_EXT, MODEL_ALT_EXT, ".json",
         ".trn", "-trn", "_trn",
         ".sft", "-sft", "_sft",
         ".dpo", "-dpo", "_dpo",
@@ -103,7 +105,7 @@ def resolve_path(
     Targets supported (via TARGET_* constants):
       - TARGET_ROOT: Model root folder ([models_dir]/[model_name])
       - TARGET_DATA: Model data folder ([models_dir]/[model_name]/data, or data/[Training|Tuning|Optimizing] when stage provided)
-      - TARGET_CHECKPOINT: Stage-specific checkpoint path (.trn.chk, .sft.chk, or .dpo.chk)
+      - TARGET_CHECKPOINT: Stage-specific checkpoint path (.chk.trn, .chk.sft, or .chk.dpo)
       - TARGET_MODEL: Final model weights file (.pth)
       - TARGET_PARAMS: Model parameters configuration JSON (.model-params.json)
       - TARGET_OPTIONS: Stage-specific options JSON (.options-[stage].json)

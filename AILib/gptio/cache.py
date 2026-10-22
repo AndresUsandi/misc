@@ -13,6 +13,7 @@ from gptio.pathutil import (
     STAGE_OPTIMIZE,
 )
 from gptio.fileutil import read_text_file
+from gptio.tokencache import load_token_cache
 from gptinfer.inference import get_tokenizer
 from gptutils.consoleutils import print
 
@@ -141,12 +142,25 @@ def load_steps_cache(
     return {}
 
 
+def steps_plan_key(args: TrainingArgs, context_length: Optional[int]) -> str:
+    """Names a token-budget batching configuration: an exact step count streamed under one is only reusable by sessions with the same one (the token count is reusable by all)."""
+    return f"bs{args.batch_size}_len{context_length or 1024}_tr{args.train_ratio}_pad{getattr(args, 'pad_to_multiple_of', None)}"
+
+
+def load_exact_steps(args: ModelArgs, stage: str, plan_key: str) -> Dict[str, int]:
+    """Exact per-file step counts recorded by a full pass with the same batching configuration (data[stage]['files'][file]['steps'][plan_key])."""
+    files = (load_all_steps_cache(args).get(stage) or {}).get("files") or {}
+    return {normalize_file_key(k): int(v["steps"][plan_key]) for k, v in files.items() if isinstance(v, dict) and plan_key in v.get("steps", {})}
+
+
 def save_steps_cache(
     args: ModelArgs,
     file_tokens: Dict[str, int],
     stage: str = STAGE_TRAIN,
+    file_steps: Optional[Dict[str, int]] = None,
+    plan_key: Optional[str] = None,
 ) -> None:
-    """Saves or updates file token counts under data[stage]['files']."""
+    """Saves or updates file token counts under data[stage]['files']; with file_steps + plan_key also the exact step counts of that batching configuration."""
     if not args.model_name or not file_tokens:
         return
     data = load_all_steps_cache(args)
@@ -159,12 +173,17 @@ def save_steps_cache(
         existing_files = {}
 
     for k, v in file_tokens.items():
-        existing_files[normalize_file_key(k)] = int(v)
+        key = normalize_file_key(k)
+        prev = existing_files.get(key) if isinstance(existing_files.get(key), dict) else {}
+        if file_steps is not None and plan_key is not None:
+            existing_files[key] = {"tokens": int(v), "steps": {**prev.get("steps", {}), plan_key: int(file_steps[k])}}
+        else:
+            existing_files[key] = {**prev, "tokens": int(v)} if prev else int(v)
 
     stage_data["stage"] = stage
     stage_data["files"] = existing_files
     if existing_files:
-        stage_data["total_tokens"] = sum(existing_files.values())
+        stage_data["total_tokens"] = sum(v["tokens"] if isinstance(v, dict) else v for v in existing_files.values())
     data[stage] = stage_data
     save_all_steps_cache(args, data)
 
@@ -195,29 +214,34 @@ def init_streaming_dataset_cache(
     args: TrainingArgs,
     context_length: int,
     stage: str,
-) -> Tuple[List[Optional[int]], List[Optional[int]], List[int], List[int]]:
+) -> Tuple[List[Optional[int]], List[Optional[int]], List[int], List[int], List[bool]]:
     """
-    Initializes (known_steps, known_tokens, cached_steps, cached_tokens) for a streaming dataset.
-    Loads previously cached token counts from disk if available, calculating exact steps per file.
+    Initializes (known_steps, known_tokens, cached_steps, cached_tokens, exact_steps) for a streaming dataset.
+    Loads previously cached token counts from disk if available, calculating steps per file from them (exact_steps[i] is True when the
+    cache holds the step count a full pass streamed under the same batching configuration, which the token formula only approximates).
     Falls back to running average or estimations for unvisited files.
     """
     total_files = len(files)
     known_steps: List[Optional[int]] = [None] * total_files
     known_tokens: List[Optional[int]] = [None] * total_files
+    exact_steps: List[bool] = [False] * total_files
     cached_steps: List[int] = []
     cached_tokens: List[int] = []
 
     cached_map: Dict[str, int] = {}
+    exact_map: Dict[str, int] = {}
     if args.model_name:
         cached_map = load_steps_cache(args, stage=stage)
+        exact_map = load_exact_steps(args, stage, steps_plan_key(args, context_length))
 
     for i, fp in enumerate(files):
         key = normalize_file_key(fp)
         if key in cached_map:
             t = cached_map[key]
-            s = calculate_file_steps(t, batch_size=args.batch_size, context_length=context_length, train_ratio=args.train_ratio)
+            s = exact_map.get(key) or calculate_file_steps(t, batch_size=args.batch_size, context_length=context_length, train_ratio=args.train_ratio)
             known_tokens[i] = t
             known_steps[i] = s
+            exact_steps[i] = key in exact_map
 
     known_t_vals = [t for t in known_tokens if t is not None]
     avg_tokens = (sum(known_t_vals) // len(known_t_vals)) if known_t_vals else None
@@ -240,7 +264,7 @@ def init_streaming_dataset_cache(
             cached_tokens.append(est_t)
             cached_steps.append(est_s)
 
-    return known_steps, known_tokens, cached_steps, cached_tokens
+    return known_steps, known_tokens, cached_steps, cached_tokens, exact_steps
 
 
 def update_streaming_dataset_cache(
@@ -340,12 +364,10 @@ def precompute_dataset_steps(
         key = normalize_file_key(fp)
         if key in cached_tokens:
             continue
-        text_data = read_text_file(fp) + " <|endoftext|> "
-        tokens = len(tokenizer.encode(text_data, allowed_special="all"))
+        tokens = len(load_token_cache(fp, tokenizer, label=key)) if stage == STAGE_TRAIN else len(tokenizer.encode(read_text_file(fp) + " <|endoftext|> ", allowed_special="all"))
         cached_tokens[key] = tokens
         updated = True
         print(f"  [Precompute] File {i}/{total_files} ({key}): {tokens:,} tokens")
-        del text_data
 
     if updated and args.model_name:
         save_steps_cache(args, cached_tokens, stage=stage)

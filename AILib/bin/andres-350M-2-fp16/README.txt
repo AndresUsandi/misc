@@ -1,0 +1,1 @@
+new list of datasets, with different epoch runs on a per dataset basis. collection of datasets entirely suggested by Fable 5.1. Should outperform Andres-350M-1 in every measurement (although several iterations might be needed for best results)

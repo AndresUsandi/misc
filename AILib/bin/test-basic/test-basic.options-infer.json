@@ -1,4 +1,4 @@
 {
     "single_gpu": true,
-    "gpu_index": 1
+    "gpu_index": 0
 }

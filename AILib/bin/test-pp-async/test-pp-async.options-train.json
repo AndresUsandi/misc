@@ -12,5 +12,6 @@
     "use_1f1b": false,
     "async_pcie": true,
     "gpu_index": 1,
-    "single_gpu": false
+    "single_gpu": false,
+    "precompute_total_steps": false
 }

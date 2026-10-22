@@ -8,5 +8,7 @@
     "beta": 0.1,
     "max_length": 512,
     "step_limit": 5,
-    "single_gpu": false
+    "multi_gpu_strategy": "parallel-pipeline",
+    "single_gpu": false,
+    "precompute_total_steps": true
 }

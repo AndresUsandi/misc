@@ -8,5 +8,6 @@
     "eval_freq": 2,
     "single_gpu": true,
     "activation_checkpointing": true,
-    "recompute_lmhead": true
+    "recompute_lmhead": true,
+    "precompute_total_steps": false
 }

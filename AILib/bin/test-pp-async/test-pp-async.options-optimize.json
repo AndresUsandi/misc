@@ -8,5 +8,7 @@
     "step_limit": 5,
     "pol_device": "cuda:1",
     "ref_device": "cuda:0",
-    "single_gpu": false
+    "multi_gpu_strategy": "parallel-pipeline",
+    "single_gpu": false,
+    "precompute_total_steps": true
 }

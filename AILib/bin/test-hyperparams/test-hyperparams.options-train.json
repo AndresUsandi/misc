@@ -11,5 +11,6 @@
     "eval_iter": 2,
     "learning_rate": 0.0005,
     "resume": true,
-    "single_gpu": true
+    "single_gpu": true,
+    "precompute_total_steps": false
 }

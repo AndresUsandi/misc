@@ -1,0 +1,1 @@
+A/B test of andres-350M-2-fp8 with one change: use_bf16_for_muon_momentum: true in every stage. It requires Muon, so Muon is on here too: compare against andres-350M-AB-fp8-muon, not against the baseline. Compare its checkpoints, loss curves, VRAM and tok/sec against andres-350M-AB-fp8-muon.

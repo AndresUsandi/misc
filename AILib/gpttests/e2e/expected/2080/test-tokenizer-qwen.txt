@@ -1,0 +1,164 @@
+[Options] Overrode 10 parameter(s) from 'test-tokenizer-qwen.options-train.json': batch_size=4, accum_steps=2, num_epochs=2, learning_rate=0.0005, resume=False, step_limit=5, eval_freq=2, single_gpu=True, override_data_folder=bin/test-basic/data/Training, precompute_total_steps=False
+=================================================================
+      FULLY-OPTIMIZED GPT TRAINING
+=================================================================
+Model: test-tokenizer-qwen
+Device: cuda:0 | Active GPUs: 1 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.float16)
+Model: test-tokenizer-qwen (8 layers, 512 emb, 8 heads)
+Batch Size: 4 (Effective: 8) | Accum Steps: 2
+Epochs: 2 | AdamW LR: 0.0005 | Muon LR: 0.001 | Warmup Steps: 100
+Vocab: 151,936 | Context: 512 | Layers: 8 | Dim: 512 | Heads: 8
+Training Data Path: bin\test-basic\data\Training
+Total training files found: 1
+  [1/1] bin\test-basic\data\Training\TheVeredict\the-verdict.txt
+=================================================================
+torch.compile skipped (default: disabled, use --compile to enable)
+Optimizer Configured: 1 ([Single Fused AdamW for all layers, default])
+[Notice] Resume disabled. Starting TRAIN from initialized weights.
+[Tokenizer] Loaded tokenizer.json (151,665 tokens, <|endoftext|>=151643, model vocab_size=151,936).
+[Training Plan] Resumed from step 0. Training for 5 steps -> Target step: 5.
+[Checkpointing] Periodic saves enabled every 1000 steps -> 'test-tokenizer-qwen'.
+[Data] 1 file(s): 4,946 tokens -> 8 train windows x 512 (2 steps/epoch of 4, 4 total global steps), 1 val windows | fixed eval buffers: 1 val + 1 train batch(es) sampled across all files.
+==================================================
+Starting Epoch 1/2
+==================================================
+Ep 1/2 (Step 000002/000002 - 100% | Global 000002/000004 - 50%): Train 11.751, Val 11.741 | PPL: 125659.49 | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000015
+[VRAM cuda:0] peak 3.506 GB = weights 0.385 + grads 0.385 + optim 0.769 + other 1.967 | now 1.618 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Sample: <text>
+Val by dataset: TheVeredict 11.741
+[VRAM cuda:0] peak 2.349 GB = weights 0.385 + grads 0.385 + optim 0.769 + other 0.810 | now 1.618 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Progress: 2/4 steps | Session elapsed: * (*) | ETA for remaining steps: * (*)
+[gptio] Saved TRAIN checkpoint (Step 2) to: bin\test-tokenizer-qwen\test-tokenizer-qwen.chk.trn
+==================================================
+Starting Epoch 2/2
+==================================================
+Ep 2/2 (Step 000002/000002 - 100% | Global 000004/000004 - 100%): Train 11.483, Val 11.503 | PPL: 98990.39 | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000025
+[VRAM cuda:0] peak 4.283 GB = weights 0.385 + grads 0.385 + optim 0.769 + other 2.745 | now 1.615 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Sample: <text>
+Val by dataset: TheVeredict 11.503
+[VRAM cuda:0] peak 2.346 GB = weights 0.385 + grads 0.385 + optim 0.769 + other 0.807 | now 1.615 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Progress: 4/4 steps | Session elapsed: * (*) | ETA for remaining steps: * (*)
+[gptio] Saved TRAIN checkpoint (Step 4) to: bin\test-tokenizer-qwen\test-tokenizer-qwen.chk.trn
+[gptio] Saved TRAIN checkpoint (Step 4) to: bin\test-tokenizer-qwen\test-tokenizer-qwen.chk.trn
+[modelio] Successfully saved clean final model to: bin\test-tokenizer-qwen\test-tokenizer-qwen.pth
+============================================================
+               TRAINING COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 8,192 (ideal: 2.1B-13.4B)
+  Final Losses       : Train 11.483 (ideal: 3.45-3.60) | Val 11.503 (ideal: 3.50-3.65)
+  Val - Train Gap    : +0.020 (UNDERFITTING!)
+  Perplexity         : 98990.39 (ideal: 33.2-38.6)
+  Model              : test-tokenizer-qwen (~103.3M params)
+============================================================
+[Plot] Saved pretraining loss curves to 'bin\test-tokenizer-qwen\test-tokenizer-qwen-loss-plot-train.pdf'.
+[Options] Overrode 9 parameter(s) from 'test-tokenizer-qwen.options-tune.json': batch_size=4, accum_steps=2, num_epochs=2, learning_rate=0.0005, max_length=512, step_limit=5, single_gpu=True, override_data_folder=bin/test-basic/data/Tuning, precompute_total_steps=True
+[Memory] cuda:0: allocator cache capped at 7.60 GiB of 8.00 GiB (* GiB already in use as seen by CUDA).
+=================================================================
+      FULLY-OPTIMIZED GPT INSTRUCTION FINE-TUNING (SFT)
+=================================================================
+Device: cuda:0 | Active GPUs: 1 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.float16)
+Model: test-tokenizer-qwen (8 layers, 512 emb, 8 heads)
+Batch Size: 4 (Accum Steps: 2) | Epochs: 2 | Peak LR: 0.000500
+Instruction Data: bin\test-basic\data\Tuning (1 file(s))
+  [1/1] combined_1.txt
+=================================================================
+[Resume] Loaded base pre-trained weights for TUNE. Starting TUNE from Step 0.
+[Tokenizer] Loaded tokenizer.json (151,665 tokens, <|endoftext|>=151643, model vocab_size=151,936).
+[Training Plan] This pass streamed 21 batches where the plan said 18 (+16.7%); the steps cache now holds the exact count and every later plan uses it (a resumed run re-anchors its LR cosine on the new horizon instead of jumping).
+[Steps Precompute] SFT: streamed the first epoch's 21 batches on the CPU in * to record the exact step counts of 1 file(s) (steps_cache.json).
+[Validation Buffer] Built fixed stratified SFT validation buffer: 8 batches across 1 file(s).
+[Streaming Loader] Initialized streaming instruction loader across 1 file(s): ~21 train steps, ~8 val steps | step plan: exact (steps cache).
+[Training Plan] Target epochs: 2 | Steps per epoch: 21 (Optimizer updates: 11) | Planned updates: 22 | Step plan: exact (steps cache)
+[Training Plan] Resumed from step 0. Training for 5 steps -> Target step: 5.
+[Gradient Accumulation] Accumulating gradients over 2 sub-steps before optimizer update.
+[Checkpointing] Model target: 'test-tokenizer-qwen'
+[Initial State Evaluation]
+  Initial Train Loss : 11.7908
+  Initial Val Loss   : 11.7176 (Seq: 11.7682) (PPL: Resp 122710.09 | Seq 129078.14) (Eval took *)
+======================================================================
+Starting Fine-Tuning Epoch 1/2
+======================================================================
+Ep 1/2 (Step 000010/000021 - 48% | Global 000005/000022 - 23%): Train 11.332, Val 10.897 (Seq 10.997) | PPL: 54023.52 (Seq 59687.60) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000439
+[VRAM cuda:0] peak 4.247 GB = weights 0.385 + grads 0.385 + optim 0.769 + other 2.709 | now 1.217 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+[gptio] Saved TUNE checkpoint (Step 5) to: bin\test-tokenizer-qwen\test-tokenizer-qwen.chk.sft
+[Step Limit Reached] Reached target step 5. Pausing fine-tuning cleanly.
+============================================================
+               FINE-TUNING COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 18,047 (ideal: 206.5M-1.5B)
+  Final Losses       : Train 11.332 | Val 10.897 (Seq: 10.997, ideal: 2.02-2.32)
+  Val - Train Gap    : -0.435 (UNDERFITTING!)
+  Perplexity         : Resp 54023.52 | Seq 59687.60 (ideal: 7.5-10.1)
+  Model              : test-tokenizer-qwen (~103.3M params)
+============================================================
+[Plot] Saved fine-tuning loss curves to 'bin\test-tokenizer-qwen\test-tokenizer-qwen-loss-plot-tune.pdf'.
+[Options] Overrode 10 parameter(s) from 'test-tokenizer-qwen.options-optimize.json': batch_size=1, accum_steps=4, num_epochs=1, learning_rate=5e-06, beta=0.1, max_length=512, step_limit=5, single_gpu=True, override_data_folder=bin/test-basic/data/Optimizing, precompute_total_steps=True
+[Memory] cuda:0: allocator cache capped at 7.60 GiB of 8.00 GiB (* GiB already in use as seen by CUDA).
+=================================================================
+      GPT DIRECT PREFERENCE OPTIMIZATION (DPO)
+=================================================================
+Policy Device: cuda:0 | Ref Device: cuda:0 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.float16)
+Model: test-tokenizer-qwen (8 layers, 512 emb, 8 heads)
+Batch Size: 1 (Accum Steps: 4) | Epochs: 1 | LR: 0.0000050 | Beta: 0.1
+Preference Data: bin\test-basic\data\Optimizing (1 file(s))
+  [1/1] preference_combined_1.json
+Base Model: test-tokenizer-qwen
+=================================================================
+[Reference Model] Initialized frozen reference model from SFT checkpoint (.chk.sft) on cuda:0.
+[Resume] Loaded base SFT weights for OPTIMIZE. Starting OPTIMIZE from Step 0.
+[Tokenizer] Loaded tokenizer.json (151,665 tokens, <|endoftext|>=151643, model vocab_size=151,936).
+[Training Plan] This pass streamed 181 batches where the plan said 165 (+9.7%); the steps cache now holds the exact count and every later plan uses it (a resumed run re-anchors its LR cosine on the new horizon instead of jumping).
+[Steps Precompute] DPO: streamed the first epoch's 181 batches on the CPU in * to record the exact step counts of 1 file(s) (steps_cache.json).
+[Validation Buffer] Built fixed stratified DPO validation buffer: 32 batches across 1 file(s).
+[Streaming Loader] Initialized streaming preference loader across 1 file(s): ~181 train steps, ~32 val steps | step plan: exact (steps cache).
+[DPO Plan] Target epochs: 1 | Steps per epoch: 181 (Updates: 46) | Total updates: 46 | Step plan: exact (steps cache)
+[DPO Plan] Resumed from step 0. Training for 5 steps -> Target step: 5.
+[Gradient Accumulation] Accumulating gradients over 4 sub-steps before optimizer update.
+[Checkpointing] Model target: 'test-tokenizer-qwen'
+[Initial State Evaluation]
+  Initial Train Loss : 7.0949 | Margin: +0.0000 | Chosen vs ref: +0.0000 | Acc: *
+  Initial Val Loss   : 7.0304 | Margin: +0.0000 | Chosen vs ref: +0.0000 | Acc: * (Eval took *)
+======================================================================
+Starting DPO Optimization Epoch 1/1
+======================================================================
+Ep 1/1 (Step 000020/000181 - 11% | Global 000005/000046 - 11%): Train 6.656, Val 6.883 | Margin: Tr +0.039, Val -0.121 | Acc: * | Chosen vs ref: Tr +0.873, Val +0.307 | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.0000049
+[VRAM cuda:0] peak 2.649 GB = weights 0.385 + grads 0.385 + optim 0.769 + other 1.110 | now 1.601 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+[gptio] Saved OPTIMIZE checkpoint (Step 5) to: bin\test-tokenizer-qwen\test-tokenizer-qwen.chk.dpo
+[Step Limit Reached] Reached target step 5. Pausing DPO optimization cleanly.
+----------------------------------------------------------------------
+[Sample Model Response @ Epoch 1]
+  Instruction : <|im_start|>user
+Evaluate the following phrase by transforming it into the spelling given.
+freind -
+  Preferred   : The spelling of the given phrase "freind" is incorrect, the correct spelling is "friend".
+  Model Output: <text>
+----------------------------------------------------------------------
+[VRAM cuda:0] peak 1.856 GB = weights 0.385 + grads 0.385 + optim 0.769 + other 0.317 | now 1.601 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+File processed: * | Total elapsed: * | ETA for remaining files: *
+============================================================
+               DPO OPTIMIZATION COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 7,806 (ideal: 51.6M-516.3M)
+  Final Losses       : Train 6.656 | Val 6.883
+  Val - Train Gap    : +0.227 (OK!)
+  Final Margins      : Train +0.039 | Val -0.121
+  Model              : test-tokenizer-qwen (~103.3M params)
+============================================================
+[Plot] Saved DPO telemetry curves to 'bin\test-tokenizer-qwen\test-tokenizer-qwen-loss-plot-optimize.pdf'.
+[Options] Overrode 2 parameter(s) from 'test-tokenizer-qwen.options-infer.json': single_gpu=True, gpu_index=0
+[SpellCheck] Autocorrect initialized (SymSpell dictionary-based cleanup active).
+============================================================
+           Interactive GPT Conversation Console
+============================================================
+Model Target    : test-tokenizer-qwen
+Precision       : FP16 (dtype: torch.float16)
+Device          : cuda:0 (Available GPUs: 0)
+Temperature     : 0.7 | Top-K: 50 | Top-P: 0.9
+System Prompt   : You are a helpful and coherent AI assistant.
+============================================================
+[modelio] Successfully loaded model weights from: bin\test-tokenizer-qwen\test-tokenizer-qwen.pth
+[Tokenizer] Loaded tokenizer.json (151,665 tokens, <|endoftext|>=151643, model vocab_size=151,936).
+⚡ [Performance] Response: * tok/s | Session Avg: * tok/s | Tokens: * in *

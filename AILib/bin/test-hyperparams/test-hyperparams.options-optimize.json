@@ -12,5 +12,6 @@
     "beta": 0.2,
     "max_length": 512,
     "resume": true,
-    "single_gpu": true
+    "single_gpu": true,
+    "precompute_total_steps": true
 }

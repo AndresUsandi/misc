@@ -2,6 +2,7 @@
 # Consolidated GPT Training, Instruction Fine-Tuning, and Preference Optimization CLI.
 # Orchestrator for train.py, tune.py, and optimize.py.
 
+import copy
 import json
 import os
 import sys
@@ -16,7 +17,7 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "garbage_collection_threshold:0.8,max_split_size_mb:256"
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "garbage_collection_threshold:0.8,max_split_size_mb:256"  # pretraining only: SFT/DPO re-set this in gpttrain/device.py before CUDA init; no expandable_segments here: pretraining shapes are static, and on Linux (where it is honored; Windows ignored it) it flooded the console with "memory mapping failed with OOM" warnings and forced a sync + full cache flush every ~2 steps (see "alloc retries" in the [VRAM] log lines)
 os.environ.setdefault("TORCH_COMPILE_CACHE_KEY_TAG", "sdpa-cudnn")
 os.environ.setdefault("TORCHINDUCTOR_USE_STATIC_CUDA_LAUNCHER", "0")
 warnings.filterwarnings("ignore", message=".*expandable_segments not supported.*")
@@ -28,7 +29,7 @@ from torch.nn.attention import sdpa_kernel, SDPBackend
 from argsutil import parse_arguments
 from gptmodel.GptModel import GptModel, DYNAMO_RECOMPILE_LIMIT
 from gptmodel.MultiGpuGptModelDP import MultiGpuGptModelDP
-from gptmodel.Dataset import parse_instruction_text_file
+from gptmodel.Dataset import format_input, parse_instruction_text_file
 from gptio.modelio import load_model_config
 from gptio.precision import (
     resolve_precision_and_amp,
@@ -47,7 +48,7 @@ from gptutils.metrics import print_stage_completion_summary, count_model_paramet
 
 from gpttrain.device import setup_devices_and_allocator
 from gpttrain.model_setup import setup_model_and_acceleration
-from gpttrain.optimizer import setup_stage_optimizer
+from gpttrain.optimizer import freeze_lower_layers, setup_stage_optimizer
 from gpttrain.checkpoint import resume_stage_checkpoint
 from gpttrain.dataloaders import (
     create_instruction_dataloaders,
@@ -166,9 +167,13 @@ def main():
         use_float8=use_float8,
         num_gpus=num_gpus,
         use_cuda=use_cuda,
+        compute_dtype=amp_dtype,
     )
     policy_model = model if stage == STAGE_OPTIMIZE else None
     target_model = model
+    replay_loader = None
+    if stage == STAGE_OPTIMIZE and args.dpo_freeze_below_layer is not None:
+        freeze_lower_layers(model, args.dpo_freeze_below_layer)
 
     # Optimizer setup
     optimizer = setup_stage_optimizer(
@@ -215,7 +220,7 @@ def main():
                 try:
                     first_items = parse_instruction_text_file(all_files[0])
                     if first_items:
-                        start_context_entry = first_items[0]
+                        start_context_entry = next((e for e in first_items if len(format_input(e)) <= 2 * max_length), first_items[0])  # a prompt that leaves room for the sample reply (~half the context; the first Capybara DPO item is 1,335 tokens)
                 except Exception:
                     pass
 
@@ -235,7 +240,7 @@ def main():
                         fc = f.read().strip()
                         entries = json.loads(fc) if fc.startswith("[") else [json.loads(l) for l in fc.splitlines() if l.strip()]
                         if entries:
-                            start_context_entry = entries[0]
+                            start_context_entry = next((e for e in entries if len(format_input(e)) <= 2 * max_length), entries[0])
                 except Exception:
                     pass
 
@@ -267,6 +272,14 @@ def main():
                 num_workers=num_workers,
                 device=device,
             )
+            if args.dpo_replay_datasets:  # --dpo_replay_datasets: the model's own fine-tuning data for those sets, streamed next to the pairs with the SFT loss
+                wanted = set(args.dpo_replay_datasets)
+                replay_files = [f for f in resolve_data_files(resolve_path_with_override(args, stage=STAGE_TUNE), stage=STAGE_TUNE, models_dir=args.models_base_dir) if wanted & set(f.parts)]
+                if not replay_files:
+                    raise FileNotFoundError(f"--dpo_replay_datasets {sorted(wanted)}: no files under {resolve_path_with_override(args, stage=STAGE_TUNE)}; download them for this model first.")
+                replay_args = copy.copy(args); replay_args.batch_size = args.dpo_replay_batch_size; replay_args.num_epochs_dataset_specific = None; replay_args.precompute_total_steps = False
+                print(f"[DPO Replay] {len(replay_files)} fine-tuning file(s) from {sorted(wanted)} replayed with the SFT loss at weight {args.dpo_replay_weight}, {args.dpo_replay_batch_size} sequences per micro-step.")
+                replay_loader, _, _ = create_instruction_dataloaders(data=replay_files, tokenizer=tokenizer, args=replay_args, max_length=max_length, num_workers=num_workers, device=device)
 
     # Engine Execution
     if stage == STAGE_TRAIN:
@@ -279,7 +292,7 @@ def main():
             context_length=gpt_config["context_length"],
             max_grad_norm=1.0, amp_dtype=amp_dtype, num_workers=num_workers,
             gpt_config=gpt_config, resumed_step=resumed_step, initial_epoch=initial_epoch,
-            resumed_file_idx=resumed_file_idx, resumed_step_in_file=resumed_step_in_file,
+            resumed_step_in_epoch=resumed_step_in_epoch,
             tokens_seen_init=tokens_seen_init,
             initial_train_losses=initial_train_losses, initial_val_losses=initial_val_losses,
             initial_track_tokens=initial_track_tokens,
@@ -408,7 +421,9 @@ def main():
                 initial_track_tokens=initial_track_tokens,
                 amp_dtype=amp_dtype,
                 use_amp=use_amp,
-                accumulated_training_time=accumulated_training_time
+                accumulated_training_time=accumulated_training_time,
+                replay_loader=replay_loader,
+                replay_weight=args.dpo_replay_weight,
             )
 
         plot_dpo_losses_and_margins(

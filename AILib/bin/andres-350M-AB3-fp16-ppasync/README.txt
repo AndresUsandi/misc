@@ -1,0 +1,1 @@
+A/B test of andres-350M-2 with one change: async_pcie: true in pretraining. It only acts under parallel-pipeline, so the strategy is parallel-pipeline here too: compare against andres-350M-AB-fp16-pp, not against the baseline. Compare its checkpoints, loss curves, VRAM and tok/sec against andres-350M-AB-fp16-pp.

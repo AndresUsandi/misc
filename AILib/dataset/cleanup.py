@@ -1,4 +1,5 @@
 
+import json
 import random
 import re
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
@@ -182,6 +183,33 @@ def clean_wikipedia_entry(item: Dict[str, Any]) -> Optional[str]:
     if title and not cleaned.startswith(title):
         cleaned = f"{title}\n\n{cleaned}"
     return cleaned if len(cleaned) > 50 else None
+
+
+def clean_finewiki_entry(item: Dict[str, Any]) -> Optional[str]:
+    """FineWiki article (markdown, tables kept) with its infobox facts as "Key: Value" lines under the title; citation markers removed and
+    capped at 50K characters (a few list pages run to millions)."""
+    text = re.sub(r"\[\d+\]", "", item.get("text") or "")[:50_000]
+    if len(text.strip()) < 50:
+        return None
+    try:
+        boxes = json.loads(item.get("infoboxes") or "[]")
+    except ValueError:
+        boxes = []
+    facts = [f"{box['title'] + ' ' if str(k).startswith('•') else ''}{k}: {v}"  # "• Total" rows belong to their box ("Population (2017)")
+             for box in boxes if isinstance(box, dict) and box.get("title") and isinstance(box.get("data"), dict)  # untitled boxes are navigation bars
+             for k, v in box["data"].items() if v and len(str(v)) <= 200]
+    title_line, _, body = text.partition("\n")
+    return clean_text_formatting("\n".join([title_line, *facts[:40], body]))
+
+
+def clean_finewiki_core_entry(item: Dict[str, Any]) -> Optional[str]:
+    """The oldest English articles (page id < 400K, created by ~2004: the encyclopedia's core topics, ~165K pages)."""
+    return clean_finewiki_entry(item) if (item.get("page_id") or 0) < 400_000 else None
+
+
+def clean_dclm_edu_entry(item: Dict[str, Any]) -> Optional[str]:
+    """DCLM-Edu pages with an educational score of 3 or more (the dataset also keeps 2; 3+ trains small models better)."""
+    return clean_standard_entry(item) if (item.get("edu_int_score") or 0) >= 3 else None
 
 
 
@@ -438,6 +466,33 @@ def clean_preference_entry(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             if prompt and chosen and rejected:
                 return {"instruction": maybe_lowercase_user_text(prompt), "input": "", "chosen": chosen, "rejected": rejected}
 
+    # 5b. HelpSteer2 preference format (response_1 / response_2, preference_strength -3..3: negative favors response_1, positive response_2, 0 tie)
+    if "response_1" in item and "response_2" in item and "preference_strength" in item:
+        strength = int(item["preference_strength"])
+        prompt = str(item.get("prompt") or "").strip()
+        chosen = str(item["response_2"] if strength > 0 else item["response_1"]).strip()
+        rejected = str(item["response_1"] if strength > 0 else item["response_2"]).strip()
+        if strength != 0 and prompt and chosen and rejected:
+            return {"instruction": maybe_lowercase_user_text(prompt), "input": "", "chosen": chosen, "rejected": rejected}
+
+    # 5d. HelpSteer3 preference format (context message list, response1 / response2, overall_preference -3..3: negative favors response1, 0 tie)
+    if "response1" in item and "response2" in item and "overall_preference" in item:
+        strength = int(item["overall_preference"])
+        user_msgs = [m.get("content") for m in (item.get("context") or []) if isinstance(m, dict) and m.get("role") == "user"]
+        prompt = str(user_msgs[-1] if user_msgs else "").strip()
+        chosen = str(item["response2"] if strength > 0 else item["response1"]).strip()
+        rejected = str(item["response1"] if strength > 0 else item["response2"]).strip()
+        if strength != 0 and prompt and chosen and rejected:
+            return {"instruction": maybe_lowercase_user_text(prompt), "input": "", "chosen": chosen, "rejected": rejected}
+
+    # 5c. Raw UltraFeedback format (instruction + 4 scored completions): chosen = highest, rejected = lowest fine-grained score
+    if "instruction" in item and isinstance(item.get("completions"), (list, tuple)) and len(item["completions"]) >= 2:
+        scored = [(float(c.get("fine-grained_score") or c.get("overall_score") or 0), str(c.get("response") or "").strip()) for c in item["completions"] if isinstance(c, dict)]
+        scored.sort(key=lambda x: x[0])
+        prompt = str(item["instruction"]).strip()
+        if len(scored) >= 2 and scored[-1][0] > scored[0][0] and prompt and scored[-1][1] and scored[0][1]:
+            return {"instruction": maybe_lowercase_user_text(prompt), "input": "", "chosen": scored[-1][1], "rejected": scored[0][1]}
+
     # 6. Standard chosen & rejected fields (DPO Mix, Orca DPO, UltraFeedback, ORPO Mix, etc.)
     if "chosen" in item and "rejected" in item:
         prompt = str(item.get("prompt") or item.get("question") or item.get("instruction") or "").strip()
@@ -471,4 +526,113 @@ def clean_preference_entry(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             return {"instruction": prompt, "input": input_ctx, "chosen": chosen, "rejected": rejected}
 
     return None
+
+
+def clean_offsetbias_entry(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """NCSOFT/offsetbias: instruction, output_1, output_2, label (1 or 2 = the better output). The better output is the plain correct
+    one and the worse is longer, more elaborate and flawed in 97% of pairs: counter-examples to the length bias of judged preference data."""
+    if not isinstance(item, dict) or "output_1" not in item or "output_2" not in item:
+        return None
+    better = int(item.get("label") or 0)
+    chosen, rejected = (item["output_1"], item["output_2"]) if better == 1 else (item["output_2"], item["output_1"])
+    return clean_preference_entry({"prompt": item.get("instruction"), "chosen": chosen, "rejected": rejected})
+
+
+def clean_metamath_dpo_entry(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """abacusai/MetaMath_DPO_FewShot: the prompt is 2-5 worked 'Question: / Answer:' examples followed by the target question; chosen is the
+    correct MetaMath solution and rejected is the same solution with one corrupted number (equal length, so the pair is about arithmetic
+    correctness only). The examples are dropped and the target question becomes the user turn; identical pairs are skipped."""
+    if not isinstance(item, dict) or "prompt" not in item:
+        return None
+    question = str(item["prompt"]).rsplit("Question:", 1)[-1].split("\nAnswer:")[0].strip()
+    chosen, rejected = str(item.get("chosen") or "").strip(), str(item.get("rejected") or "").strip()
+    if not question or chosen == rejected:
+        return None
+    return clean_preference_entry({"prompt": question, "chosen": chosen, "rejected": rejected})
+
+
+def clean_tulu_if_entry(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """allenai/tulu-3-pref-personas-instruction-following: a request with explicit IFEval-style constraints (number of paragraphs / sentences /
+    words, sections, a required ending, keywords, no commas, ...), a GPT-4o answer that satisfies them (chosen) and one that breaks them
+    (rejected). Pairs whose answers run past ~400 tokens are dropped: half the set, and the half a 1,024-context model should not be
+    anchored to. The prompt is not lowercased (some constraints are about letter case or a literal phrase)."""
+    if not isinstance(item, dict) or not isinstance(item.get("chosen"), list) or not isinstance(item.get("rejected"), list):
+        return None
+    last = lambda msgs, role: next((str(m.get("content") or "") for m in reversed(msgs) if isinstance(m, dict) and m.get("role") == role), "")
+    prompt = str(item.get("prompt") or last(item["chosen"], "user")).strip()
+    chosen, rejected = last(item["chosen"], "assistant").strip(), last(item["rejected"], "assistant").strip()
+    if not prompt or not chosen or not rejected or chosen == rejected or max(len(chosen), len(rejected)) > 1600:
+        return None
+    return {"instruction": prompt, "input": "", "chosen": chosen, "rejected": rejected}
+
+
+def clean_coedit_gec_entry(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """grammarly/coedit, grammar-correction rows (task 'gec'): src is an edit instruction followed by the sentence, tgt the corrected sentence.
+    chosen = the corrected sentence, rejected = the sentence handed back unchanged - the failure the model actually shows on editing
+    requests. The prompt is not lowercased (the sentence to fix must stay as written)."""
+    if not isinstance(item, dict) or item.get("task") != "gec" or not item.get("src") or not item.get("tgt"):
+        return None
+    src, tgt = str(item["src"]).strip(), str(item["tgt"]).strip()
+    echo = src.split(":", 1)[1].strip() if ":" in src else src
+    if not echo or echo == tgt:
+        return None
+    return {"instruction": src, "input": "", "chosen": tgt, "rejected": echo}
+
+
+def clean_openhermes_misconception_entry(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """argilla/OpenHermesPreferences restricted to category 'misconception' (short factual questions with a false premise or popular myth;
+    chosen and rejected answers of similar length). The 'trivia' category is deliberately left out: its judge preferred the answer with
+    added background over the plain correct one in 72% of pairs, the habit this lineage is trying to unlearn."""
+    return clean_preference_entry(item) if isinstance(item, dict) and item.get("category") == "misconception" else None
+
+
+class OasstTreeCleaner:
+    """
+    Cleaner for the OpenAssistant conversation trees (OpenAssistant/oasst1, oasst2): one dataset row per message, linked by parent_id.
+    Rows are buffered per tree (the download streams them one at a time, in any order) and turned into ChatML conversations by flush(),
+    which the downloader calls after the last row: from every tree, each root-to-leaf thread that keeps only messages in the requested
+    language, not deleted, not rejected by review, follows the best-ranked assistant reply at each step and at most `max_branches`
+    of the ranked user follow-ups, and ends on an assistant turn. Unlike the GPT-written SFT sets these are human questions and
+    human answers (~5M tokens of English in oasst2), so a small model learns direct, natural replies rather than essay style.
+    """
+    __name__ = "clean_oasst_tree_entry"
+
+    def __init__(self, lang: str = "en", max_branches: int = 2):
+        self.lang = lang
+        self.max_branches = max_branches
+        self.trees: Dict[str, List[Dict[str, Any]]] = {}
+
+    def __call__(self, item: Dict[str, Any]) -> Optional[str]:
+        if not isinstance(item, dict) or item.get("lang") != self.lang or item.get("deleted") or item.get("review_result") is False:
+            return None
+        text = str(item.get("text") or "").strip()
+        if text and item.get("message_tree_id"):
+            self.trees.setdefault(item["message_tree_id"], []).append({"id": item.get("message_id"), "parent": item.get("parent_id"), "role": item.get("role"), "rank": item.get("rank"), "text": text})
+        return None
+
+    def flush(self) -> List[str]:
+        docs: List[str] = []
+        for msgs in self.trees.values():
+            children: Dict[Any, List[Dict[str, Any]]] = {}
+            for m in msgs:
+                children.setdefault(m["parent"], []).append(m)
+            for root in children.get(None, []):
+                self._walk(root, [], children, docs)
+        self.trees.clear()
+        return docs
+
+    def _walk(self, node: Dict[str, Any], turns: List[Tuple[str, str]], children: Dict[Any, List[Dict[str, Any]]], docs: List[str]) -> int:
+        """Emits the threads below `node` and returns how many; an assistant turn whose follow-up questions all went unanswered ends a thread itself."""
+        turns = turns + [(node["role"], node["text"])]
+        rank = lambda m: m["rank"] if m["rank"] is not None else 0
+        kids = sorted((k for k in children.get(node["id"], []) if k["role"] != node["role"]), key=rank)
+        kids = kids[:1] if node["role"] == "prompter" else kids[:self.max_branches]  # the best answer to a question; a few follow-up questions to an answer
+        emitted = sum(self._walk(k, turns, children, docs) for k in kids)
+        if node["role"] == "assistant" and emitted == 0:
+            docs.append("\n".join(f"<|im_start|>{'assistant' if role == 'assistant' else 'user'}\n{text if role == 'assistant' else maybe_lowercase_user_text(text)}<|im_end|>" for role, text in turns))
+            return 1
+        return emitted
+
+
+clean_oasst_tree_entry = OasstTreeCleaner()
 

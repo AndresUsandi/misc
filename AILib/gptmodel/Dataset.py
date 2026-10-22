@@ -1,4 +1,3 @@
-from concurrent.futures import Future
 import json
 from functools import partial
 from pathlib import Path
@@ -8,9 +7,11 @@ import random
 import re
 import sys
 import threading
+import time
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
+import numpy as np
 import torch
-from torch.utils.data import DataLoader, IterableDataset, TensorDataset
+from torch.utils.data import IterableDataset
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -19,8 +20,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from argsutil import TrainingArgs
 from gptio.pathutil import STAGE_OPTIMIZE, STAGE_TRAIN, STAGE_TUNE
-from gptio.cache import init_streaming_dataset_cache, update_streaming_dataset_cache, calculate_file_steps, normalize_file_key, save_steps_cache
-from gptio.fileutil import read_text_file
+from gptio.cache import init_streaming_dataset_cache, calculate_file_steps, normalize_file_key, save_steps_cache, steps_plan_key
+from gptio.tokencache import load_token_cache
 from gptutils.consoleutils import print
 
 # Length-sorting window for fine-tuning items, in multiples of batch_size items: items are sorted by length within a window and packed
@@ -172,12 +173,20 @@ def length_grouped_batches(window: List[Any], batch_size: int, length_key: Calla
     return batches
 
 
+EVAL_BUFFER_SEED: int = 4242  # the fixed evaluation buffers are the same in every run and after every resume
+DATASET_EVAL_BATCHES: int = 2  # batches per source dataset in the per-dataset validation breakdown
+
+
 class StreamingTextDataset(IterableDataset):
     """
-    Streams a pretraining corpus file by file as fixed context-length windows (stride = context length), the way the fine-tuning
-    datasets stream theirs: per-file train/val split by character ratio, seeded window shuffle (reproducible for resume), the next file
-    tokenized in the background while the current one is consumed, batches prefetched through a queue, and per-file step/token
-    bookkeeping in the steps cache. Yields (inputs, targets, file_idx, step_in_file) with 1-based indices for per-file checkpoint/resume.
+    The pretraining corpus as one pool of fixed context-length windows (stride = context length) drawn from every file: each file is
+    tokenized once into a memory-mapped token cache (gptio.tokencache), its windows are split train/val by --train_ratio (the val
+    windows are the tail of the file), and an epoch is a seeded permutation of the train windows of all files, so every batch mixes
+    all sources. (Streaming one file at a time trained ~130M tokens of a single source in a row, and each file overwrote part of what
+    the files before it had taught.) Resume replays the epoch's permutation and skips the steps already done; step counts are exact
+    from the first step. Fixed, seeded evaluation buffers sampled across all files replace the per-file evaluation: a held-out val
+    set, a train probe drawn the same way (so the Val - Train gap measures memorization, not a change of file), and per-dataset val
+    batches for the breakdown by source. Yields (inputs, targets) batches.
     """
     def __init__(
         self,
@@ -195,102 +204,76 @@ class StreamingTextDataset(IterableDataset):
         self.context_length = context_length
         self.train_ratio = args.train_ratio
         self.prefetch_size = prefetch_size
-        self.known_steps, self.known_tokens, self.file_steps, _ = init_streaming_dataset_cache(
-            files=self.files, args=args, context_length=context_length, stage=STAGE_TRAIN,
-        )
-        self.num_known = sum(s is not None for s in self.known_steps)
-        self._windows: Dict[int, Tuple[torch.Tensor, ...]] = {}  # file_idx -> (train_in, train_tgt, val_in, val_tgt) of the files in flight
-        self._pending: Dict[int, Future] = {}  # file_idx -> background tokenization
-        self._start = (0, 1, 1, 0)  # (epoch, num_epochs, file_idx, steps to skip) for the next iteration
+        self.tokens: List[np.ndarray] = [load_token_cache(f, tokenizer, label=normalize_file_key(f)) for f in self.files]
+        self.dataset_names: List[str] = [normalize_file_key(f).split("/")[0] if "/" in normalize_file_key(f) else f.stem for f in self.files]
+        self.total_tokens = int(sum(len(t) for t in self.tokens))
+        if args.model_name:
+            save_steps_cache(args, {normalize_file_key(f): int(len(t)) for f, t in zip(self.files, self.tokens)}, stage=STAGE_TRAIN)
+        windows = [max(0, (len(t) - 1) // context_length) for t in self.tokens]
+        for f, w in zip(self.files, windows):
+            if w == 0:
+                print(f"Skipping {f}: fewer than {context_length + 1} tokens.")
+        self.n_train = [min(w, max(1, int(round(w * self.train_ratio)))) if w else 0 for w in windows]
+        self.n_val = [w - n for w, n in zip(windows, self.n_train)]
+        self.train_offsets = np.cumsum([0] + self.n_train)  # global train window id -> file (searchsorted)
+        self.val_offsets = np.cumsum([0] + self.n_val)
+        self.total_train, self.total_val = int(self.train_offsets[-1]), int(self.val_offsets[-1])
+        self.repeats = dataset_repeats(args, self.files)
+        self.steps_per_epoch = sum(int(n * r) for n, r in zip(self.n_train, self.repeats)) // self.batch_size
+        self._start = (0, 0)  # (epoch, steps to skip) for the next iteration
+        gen = torch.Generator().manual_seed(EVAL_BUFFER_SEED)
+        n_eval = args.eval_iter * self.batch_size
+        self.val_loader = self._batches(torch.randperm(self.total_val, generator=gen)[:n_eval].tolist(), val=True)
+        self.train_probe_loader = self._batches(torch.randperm(self.total_train, generator=gen)[:n_eval].tolist(), val=False)
+        self._dataset_val_loaders: Optional[Dict[str, List[Tuple[torch.Tensor, torch.Tensor]]]] = None
 
     def __len__(self) -> int:
-        return sum(self.file_steps)
+        return self.steps_per_epoch
 
-    def seek(self, epoch: int, num_epochs: int, file_idx: int = 1, step_in_file: int = 0) -> None:
-        """Positions the next iteration: epoch seeds the shuffle; file_idx/step_in_file are the 1-based checkpoint values to resume from."""
-        self._start = (epoch, num_epochs, file_idx, step_in_file)
+    def seek(self, epoch: int, step_in_epoch: int = 0) -> None:
+        """Positions the next iteration: epoch seeds the permutation; step_in_epoch is the checkpoint's count of steps already done in it."""
+        self._start = (epoch, step_in_epoch)
 
     def __iter__(self):
         return iter(PrefetchIterator(self._generate_batches, queue_size=self.prefetch_size))
 
-    def eval_loaders(self, file_idx: int) -> Tuple[DataLoader, DataLoader]:
-        """Shuffled train and ordered val loaders over the already tokenized windows of a file, for periodic evaluation."""
-        train_in, train_tgt, val_in, val_tgt = self._windows[file_idx]
-        pin = torch.cuda.is_initialized()
-        return (DataLoader(TensorDataset(train_in, train_tgt), batch_size=self.batch_size, shuffle=True, drop_last=True, pin_memory=pin),
-                DataLoader(TensorDataset(val_in, val_tgt), batch_size=self.batch_size, shuffle=False, drop_last=False, pin_memory=pin))
+    def dataset_val_loaders(self) -> Dict[str, List[Tuple[torch.Tensor, torch.Tensor]]]:
+        """A few fixed val batches per source dataset (the folder a file sits in), for the per-dataset validation breakdown."""
+        if self._dataset_val_loaders is None:
+            gen = torch.Generator().manual_seed(EVAL_BUFFER_SEED + 1)
+            self._dataset_val_loaders = {}
+            for name in dict.fromkeys(self.dataset_names):
+                ids = torch.cat([torch.arange(int(self.val_offsets[i]), int(self.val_offsets[i + 1])) for i, n in enumerate(self.dataset_names) if n == name])
+                if len(ids):
+                    self._dataset_val_loaders[name] = self._batches(ids[torch.randperm(len(ids), generator=gen)[:DATASET_EVAL_BATCHES * self.batch_size]].tolist(), val=True)
+        return self._dataset_val_loaders
 
-    def _windows_from_text(self, text: str) -> Tuple[torch.Tensor, torch.Tensor]:
-        token_ids = torch.tensor(self.tokenizer.encode(text, allowed_special="all"), dtype=torch.long)
-        if len(token_ids) > self.context_length:
-            return token_ids[:-1].unfold(0, self.context_length, self.context_length), token_ids[1:].unfold(0, self.context_length, self.context_length)
-        return token_ids.new_empty((0, self.context_length)), token_ids.new_empty((0, self.context_length))
+    def _window(self, gid: int, val: bool) -> np.ndarray:
+        """The context_length + 1 tokens of a global train/val window id (val windows follow the train windows inside each file)."""
+        offsets = self.val_offsets if val else self.train_offsets
+        fi = int(np.searchsorted(offsets, gid, side="right") - 1)
+        start = (gid - int(offsets[fi]) + (self.n_train[fi] if val else 0)) * self.context_length
+        return self.tokens[fi][start:start + self.context_length + 1]
 
-    def _tokenize_file(self, file_idx: int) -> Tuple[torch.Tensor, ...]:
-        print(f"Tokenizing file {file_idx} of {len(self.files)}: {self.files[file_idx - 1]}")
-        text = read_text_file(self.files[file_idx - 1]) + " <|endoftext|> "
-        split_idx = int(self.train_ratio * len(text))
-        return self._windows_from_text(text[:split_idx]) + self._windows_from_text(text[split_idx:])
+    def _batch(self, gids: List[int], val: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
+        t = torch.from_numpy(np.stack([self._window(g, val) for g in gids]).astype(np.int64))
+        return t[:, :-1].contiguous(), t[:, 1:].contiguous()  # contiguous: the loss flattens targets with .view (CPU batches are used as yielded)
 
-    def _tokenize_in_background(self, file_idx: int) -> None:
-        future: Future = Future()
-
-        def run():
-            try:
-                future.set_result(self._tokenize_file(file_idx))
-            except BaseException as e:
-                future.set_exception(e)
-
-        threading.Thread(target=run, daemon=True).start()  # daemon: a pending tokenization must not keep the process alive after a stop
-        self._pending[file_idx] = future
-
-    def _file_order(self, epoch: int) -> List[int]:
-        """1-based file indices in the order the epoch streams them: a seeded shuffle, so sources interleave across the epoch instead of running back to back (and a resume replays the same order)."""
-        return (torch.randperm(len(self.files), generator=torch.Generator().manual_seed(999_983 * (epoch + 1))) + 1).tolist()
+    def _batches(self, gids: List[int], val: bool) -> List[Tuple[torch.Tensor, torch.Tensor]]:
+        return [self._batch(gids[i:i + self.batch_size], val) for i in range(0, len(gids), self.batch_size)]
 
     def _generate_batches(self):
-        epoch, num_epochs, start_file, skip = self._start
-        self._start = (epoch + 1, num_epochs, 1, 0)
-        total_files = len(self.files)
-        order = self._file_order(epoch)
-        prev_idx = None
-        for slot in range(0 if (start_file, skip) == (1, 0) else order.index(start_file), total_files):  # (1, 0) is the engine's "start of epoch"; anything else is a checkpoint position
-            file_idx = order[slot]
-            if file_idx not in self._pending:
-                self._tokenize_in_background(file_idx)
-            windows = self._pending.pop(file_idx).result()
-            next_idx = order[slot + 1] if slot + 1 < total_files else (self._file_order(epoch + 1)[0] if epoch + 1 < num_epochs else None)
-            if next_idx is not None and next_idx not in self._pending:
-                print(f"[Prefetch] Tokenizing next file in background: {self.files[next_idx - 1]}")
-                self._tokenize_in_background(next_idx)
-            for k in [k for k in self._windows if k not in (file_idx, prev_idx)]:  # keep the previous file: the consumer may still be evaluating it
-                del self._windows[k]
-            self._windows[file_idx] = windows
-            prev_idx = file_idx
-            train_in, train_tgt = windows[0], windows[1]
-            num_batches = len(train_in) // self.batch_size
-            if num_batches == 0:
-                print(f"Skipping {self.files[file_idx - 1]}: insufficient tokens for batch size {self.batch_size}")
-                self.known_steps[file_idx - 1] = self.known_tokens[file_idx - 1] = self.file_steps[file_idx - 1] = 0  # exact: no steps, no estimate
-                continue
-            train_tokens = len(train_in) * self.context_length
-            self.file_steps, _ = update_streaming_dataset_cache(  # exact steps for this file (and the steps cache entry), estimates refreshed for the rest
-                file_idx=file_idx - 1, file_steps=num_batches, file_tokens=int(train_tokens / self.train_ratio) if self.train_ratio > 0 else train_tokens,
-                files=self.files, known_steps=self.known_steps, known_tokens=self.known_tokens, args=self.args,
-                context_length=self.context_length, stage=STAGE_TRAIN,
-            )
-            if skip:
-                print(f"[Resume] Fast-forwarding {skip} step(s) in file {file_idx} ({self.files[file_idx - 1]}) -> Resuming from step {skip + 1}/{num_batches}...")
-            perm = torch.randperm(len(train_in), generator=torch.Generator().manual_seed(1_000_003 * epoch + file_idx))[:num_batches * self.batch_size].view(num_batches, self.batch_size)
-            for step in range(skip, num_batches):
-                yield train_in[perm[step]], train_tgt[perm[step]], file_idx, step + 1
-            skip = 0
+        epoch, skip = self._start
+        self._start = (epoch + 1, 0)
+        perm = epoch_pool(self.n_train, self.repeats, epoch)
+        for step in range(skip, self.steps_per_epoch):
+            yield self._batch(perm[step * self.batch_size:(step + 1) * self.batch_size].tolist())
 
 
 def planned_streaming_steps(cached_steps: List[int], is_train: bool, train_ratio: float) -> int:
     """Planned batches per epoch: token-budget batches carry ~batch_size x max_length tokens, so the steps cache's token-based per-file plan (exact once a file has been seen) applies; the val split is the remaining fraction."""
     if is_train:
-        return max(1, sum(cached_steps))
+        return max(1, int(sum(cached_steps)))
     val_ratio = max(0.01, 1.0 - train_ratio)
     return max(1, int(sum(cached_steps) * (val_ratio / max(0.01, train_ratio))))
 
@@ -316,21 +299,84 @@ def record_file_steps(ds: Any, file_idx: int, file_steps: int, padded_train_toke
     file_tokens = int(padded_train_tokens / ds.train_ratio) if ds.train_ratio > 0 else padded_train_tokens
     ds.known_steps[file_idx] = ds.cached_steps[file_idx] = file_steps
     ds.known_tokens[file_idx] = ds.cached_tokens[file_idx] = file_tokens
+    ds.exact_steps[file_idx] = True
     if ds.args.model_name:
-        save_steps_cache(ds.args, {normalize_file_key(ds.files[file_idx]): file_tokens}, stage=stage)
+        key = normalize_file_key(ds.files[file_idx])
+        save_steps_cache(ds.args, {key: file_tokens}, stage=stage, file_steps={key: file_steps}, plan_key=steps_plan_key(ds.args, ds.max_length))
 
 
 def record_epoch_file_steps(ds: Any, steps: int, file_tokens: List[int], stage: str) -> None:
-    """After a globally shuffled epoch (batches mix files), splits the epoch's batch count across files in proportion to the padded tokens each contributed and records them."""
+    """After a globally shuffled epoch (batches mix files), splits the epoch's batch count across files in proportion to the padded tokens each contributed and records them (per single pass: a file repeated ds.repeats[fi] times per epoch is scaled back)."""
+    planned = len(ds)
     total = sum(file_tokens)
     for fi, t in enumerate(file_tokens):
         if t:
-            record_file_steps(ds, fi, max(1, round(steps * t / total)), t, stage)
+            record_file_steps(ds, fi, max(1, round(steps * t / total / ds.repeats[fi])), int(t / ds.repeats[fi]), stage)
+    if steps != planned:
+        print(f"[Training Plan] This pass streamed {steps:,} batches where the plan said {planned:,} ({100.0 * (steps - planned) / max(1, planned):+.1f}%); the steps cache now holds the exact count and every later plan uses it (a resumed run re-anchors its LR cosine on the new horizon instead of jumping).")
 
 
-def epoch_permutation(n: int, epoch: int) -> List[int]:
+def plan_provenance(ds: Any) -> str:
+    """How the step plan (len(), hence the LR horizon) was obtained: exact from the steps cache (a previous pass or --precompute_total_steps), or estimated for files never streamed."""
+    unknown = sum(1 for k in ds.known_steps if k is None)
+    approx = sum(1 for k, e in zip(ds.known_steps, ds.exact_steps) if k is not None and not e)
+    if not unknown and not approx:
+        return "exact (steps cache)"
+    parts = [f"{approx} of {len(ds.files)} file(s) planned from cached token counts (approximate for token-budget batching)"] * bool(approx) + [f"{unknown} of {len(ds.files)} file(s) estimated from {STEP_ESTIMATE_SAMPLE:,}-item samples"] * bool(unknown)
+    return "; ".join(parts) + "; exact after the first pass"
+
+
+def precompute_streaming_steps(ds: Any, stage_label: str) -> None:
+    """--precompute_total_steps for the streaming SFT/DPO datasets: streams the first epoch once without the GPU (the very same seeded order,
+    tokenization, length packing and CPU collation as the real pass, nothing yielded) so record_epoch_file_steps stores the exact step and
+    token counts before the first step and the LR horizon is exact from the start instead of an estimate corrected after the first pass.
+    Costs one epoch of data-loading CPU work the first time a dataset (or batching configuration) is seen; skipped when the steps cache
+    already holds exact counts for every file."""
+    if all(ds.exact_steps):
+        return
+    t0 = time.time()
+    prefetch, ds.prefetch_size = ds.prefetch_size, max(1, ds.prefetch_size)  # _generate_batches collates on the CPU when prefetching
+    n = sum(1 for _ in ds._generate_batches())
+    ds.prefetch_size = prefetch
+    print(f"[Steps Precompute] {stage_label}: streamed the first epoch's {n:,} batches on the CPU in {time.time() - t0:.1f}s to record the exact step counts of {len(ds.files)} file(s) (steps_cache.json).")
+
+
+def epoch_permutation(n: int, epoch: int) -> torch.Tensor:
     """Seeded global shuffle of n items for an epoch: every epoch sees a different order, and a resume replays the same one."""
-    return torch.randperm(n, generator=torch.Generator().manual_seed(1_000_003 * epoch + 7)).tolist()
+    return torch.randperm(n, generator=torch.Generator().manual_seed(1_000_003 * epoch + 7))
+
+
+def dataset_repeats(args: TrainingArgs, files: List[Path]) -> List[float]:
+    """Per-file multiplier of the regular epochs from num_epochs_dataset_specific ({"wikipedia": 4} or [{"wikipedia": 4}, {"cosmopedia": 3}], keyed
+    by the dataset folder a file sits in): under num_epochs 2 a folder listed with 4 repeats 2x in every epoch, one listed with 3 1.5x (all of
+    it plus a different half each epoch), one listed with 0 is left out; unlisted folders 1x."""
+    names = [normalize_file_key(f).split("/")[0] if "/" in normalize_file_key(f) else f.stem for f in files]
+    spec = args.num_epochs_dataset_specific or {}
+    spec = {k: v for d in (spec if isinstance(spec, list) else [spec]) for k, v in d.items()}
+    for k in spec.keys() - set(names):
+        print(f"[Data Warning] num_epochs_dataset_specific: no dataset folder '{k}' among {sorted(set(names))}, ignored.")
+    if spec:
+        print(f"[Data] Dataset-specific epochs over the {args.num_epochs}-epoch run: " + ", ".join(f"{k} x{v}" for k, v in spec.items()) + " (other datasets x{}).".format(args.num_epochs))
+    return [float(spec.get(n, args.num_epochs)) / max(1, args.num_epochs) for n in names]
+
+
+def epoch_pool(counts: List[int], repeats: List[float], epoch: int) -> torch.Tensor:
+    """Shuffled global item ids of one epoch (file i owns the ids from counts[0] + ... + counts[i-1] on): file i contributes counts[i] * repeats[i]
+    ids, the next stretch of a virtual stream of back-to-back seeded permutations of its ids, so over the run every item is seen
+    num_epochs * repeats[i] times and an epoch never shows an item again before a full pass over the file. All repeats 1: the plain epoch_permutation."""
+    if all(r == 1.0 for r in repeats):
+        return epoch_permutation(sum(counts), epoch)
+    pool, base = [], 0
+    for fi, (n, r) in enumerate(zip(counts, repeats)):
+        v = torch.arange(epoch * int(n * r), (epoch + 1) * int(n * r))  # positions in the file's virtual stream
+        ids = torch.empty(len(v), dtype=torch.long)
+        for k in torch.unique(v // max(n, 1)).tolist():  # the pass(es) the stretch spans, each its own permutation
+            m = v // max(n, 1) == k
+            ids[m] = torch.randperm(n, generator=torch.Generator().manual_seed(1_000_003 * k + 7919 * fi + 13))[v[m] % n]
+        pool.append(ids + base)
+        base += n
+    pool = torch.cat(pool)
+    return pool[epoch_permutation(len(pool), epoch)]
 
 
 def pair_padded_length(item: Dict[str, Any], pad_to_multiple_of: int = 0) -> int:
@@ -395,7 +441,7 @@ class StreamingPreferenceDataset(IterableDataset):
         self.pad_to_multiple_of = args.pad_to_multiple_of
         self._padded_length = partial(pair_padded_length, pad_to_multiple_of=args.pad_to_multiple_of)
 
-        self.known_steps, self.known_tokens, self.cached_steps, self.cached_tokens = init_streaming_dataset_cache(
+        self.known_steps, self.known_tokens, self.cached_steps, self.cached_tokens, self.exact_steps = init_streaming_dataset_cache(
             files=self.files,
             args=args,
             context_length=max_length,
@@ -403,6 +449,7 @@ class StreamingPreferenceDataset(IterableDataset):
         )
         self._stratified_batches: Optional[List[Any]] = None
         self.epoch = 0
+        self.repeats = dataset_repeats(args, self.files) if is_train else [1.0] * len(self.files)
         if not self.is_train:
             self._stratified_batches = self._build_stratified_validation_buffer()
         else:
@@ -459,7 +506,7 @@ class StreamingPreferenceDataset(IterableDataset):
     def __len__(self) -> int:
         if not self.is_train and self._stratified_batches is not None:
             return len(self._stratified_batches)
-        return planned_streaming_steps(self.cached_steps, self.is_train, self.train_ratio)
+        return planned_streaming_steps([s * r for s, r in zip(self.cached_steps, self.repeats)], self.is_train, self.train_ratio)
 
     def _encode_pair(self, entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Tokenizes a preference entry into prompt/chosen/rejected ids (None when a sequence exceeds max_length)."""
@@ -481,11 +528,21 @@ class StreamingPreferenceDataset(IterableDataset):
         rejected_tokens = self.tokenizer.encode(rejected_full, allowed_special="all")
 
         if self.max_length is not None:
-            if (
-                len(chosen_tokens) + 1 > self.max_length
-                or len(rejected_tokens) + 1 > self.max_length
-                or len(prompt_tokens) >= self.max_length
-            ):
+            budget = self.max_length - 1  # the collate keeps one slot
+            if len(prompt_tokens) >= self.max_length:
+                return None
+            if getattr(self.args, "dpo_truncate_long_pairs", False):
+                # Keep the pair, cut the answer: the prompt plus the head of the answer, with the end marker put back as the last token
+                # when the answer had one. Pairs whose prompt leaves fewer than 32 answer tokens are still dropped.
+                if len(prompt_tokens) + 32 > budget:
+                    return None
+                end_ids = self.tokenizer.encode(end, allowed_special="all") if is_chat and end else []
+                def fit(t: List[int]) -> List[int]:
+                    if len(t) <= budget:
+                        return t
+                    return t[:budget - len(end_ids)] + end_ids if end_ids and t[-len(end_ids):] == end_ids else t[:budget]
+                chosen_tokens, rejected_tokens = fit(chosen_tokens), fit(rejected_tokens)
+            elif len(chosen_tokens) > budget or len(rejected_tokens) > budget:
                 return None
 
         encoded_item: Dict[str, Any] = {
@@ -519,9 +576,11 @@ class StreamingPreferenceDataset(IterableDataset):
         )
         # Global shuffle: the train split of every file is pooled and permuted per epoch (preference files are small enough to hold as parsed entries)
         items: List[Tuple[Dict[str, Any], int]] = []
+        counts: List[int] = []  # train items per file, in file order (the pool's id blocks)
         for file_idx, file_path in enumerate(self.files):
             valid_entries = parse_preference_file(file_path)
             items += [(e, file_idx) for e in valid_entries[:max(1, int(len(valid_entries) * self.train_ratio))]]
+            counts.append(len(items) - sum(counts))
 
         steps = 0
         file_tokens = [0] * len(self.files)  # padded tokens the model processes, per source file
@@ -537,7 +596,7 @@ class StreamingPreferenceDataset(IterableDataset):
                     file_tokens[fi] += 2 * batch_dict["chosen"].shape[1]  # chosen + rejected, both padded to the batch length
                 yield batch_dict
 
-        for i in epoch_permutation(len(items), self.epoch):
+        for i in epoch_pool(counts, self.repeats, self.epoch).tolist():
             encoded_item = self._encode_pair(items[i][0])
             if encoded_item is None:
                 continue
@@ -719,7 +778,7 @@ class StreamingInstructionDataset(IterableDataset):
         self.pad_to_multiple_of = args.pad_to_multiple_of
         self._padded_length = partial(instruction_padded_length, pad_to_multiple_of=args.pad_to_multiple_of)
 
-        self.known_steps, self.known_tokens, self.cached_steps, self.cached_tokens = init_streaming_dataset_cache(
+        self.known_steps, self.known_tokens, self.cached_steps, self.cached_tokens, self.exact_steps = init_streaming_dataset_cache(
             files=self.files,
             args=args,
             context_length=max_length or 1024,
@@ -729,6 +788,7 @@ class StreamingInstructionDataset(IterableDataset):
         self.epoch = 0
         self._spans: Optional[torch.Tensor] = None  # (file_idx, byte_start, byte_end) of every train doc across all files
         self._mmaps: List[mmap.mmap] = []
+        self.repeats = dataset_repeats(args, self.files) if is_train else [1.0] * len(self.files)
         if not self.is_train:
             self._stratified_batches = self._build_stratified_validation_buffer()
         else:
@@ -800,7 +860,7 @@ class StreamingInstructionDataset(IterableDataset):
     def __len__(self) -> int:
         if not self.is_train and self._stratified_batches is not None:
             return len(self._stratified_batches)
-        return planned_streaming_steps(self.cached_steps, self.is_train, self.train_ratio)
+        return planned_streaming_steps([s * r for s, r in zip(self.cached_steps, self.repeats)], self.is_train, self.train_ratio)
 
     def _encode_item(self, entry: Dict[str, Any]) -> List[Tuple[List[int], List[bool]]]:
         """
@@ -870,7 +930,7 @@ class StreamingInstructionDataset(IterableDataset):
                 yield batch_tensor
 
         # Global shuffle: documents from all files in a seeded per-epoch order, each read from its file by byte offset
-        for i in epoch_permutation(len(self._spans), self.epoch):
+        for i in epoch_pool(torch.bincount(self._spans[:, 0], minlength=len(self.files)).tolist(), self.repeats, self.epoch).tolist():
             fi, start, end = self._spans[i].tolist()
             doc = self._mmaps[fi][start:end].decode("utf-8", errors="replace").replace("\r\n", "\n").strip()  # text-mode reads translate CRLF; the mmap bytes do not
             for encoded_item in self._encode_item(parse_instruction_doc(doc)):

@@ -53,7 +53,7 @@ flowchart TD
 
     Train --> IO[gptio]
     Infer --> IO
-    IO --> Checkpoints[(.trn.chk / .sft.chk / .dpo.chk)]
+    IO --> Checkpoints[(.chk.trn / .chk.sft / .chk.dpo)]
     IO --> Weights[(.pth / .pt)]
     IO --> Cache[(steps_cache.json)]
 
@@ -185,7 +185,7 @@ model-params.json
 options-{train,tune,optimize,infer}.json
 tokenizer.json (optional; declared via the "tokenizer" key of model-params.json, see ARGUMENTS-TRAIN.md)
 .pth model weights
-.trn.chk / .sft.chk / .dpo.chk checkpoints
+.chk.trn / .chk.sft / .chk.dpo checkpoints
 data/
 logs
 loss plots

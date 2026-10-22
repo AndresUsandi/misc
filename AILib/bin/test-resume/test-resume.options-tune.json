@@ -7,5 +7,6 @@
     "step_limit": 3,
     "single_gpu": true,
     "save_interval": 2,
-    "eval_freq": 2
+    "eval_freq": 2,
+    "precompute_total_steps": true
 }

@@ -20,13 +20,20 @@ from gptmodel.Modules import SafeDropout
 from gptmodel.Transformer import TransformerBlock, safe_add, create_norm
 from gptmodel.Linear import Linear
 
-LOGIT_CLAMP_MIN: float = -50.0
-LOGIT_CLAMP_MAX: float = 50.0
+LOGIT_CLAMP_MIN: float = -1e4  # fp16-overflow guard only: the original GPT-2 124M/355M checkpoints produce logits in the -170..+200 range, so +-50 flattened them (loss 7 instead of 2.3)
+LOGIT_CLAMP_MAX: float = 1e4
 UNEVEN_LAYERS_GPU0_RATIO: float = 0.60
 FLOAT8_RECIPE: str = "tensorwise"  # rowwise scaling is not supported by torch._scaled_mm on consumer Blackwell (sm_120)
 # Compiled variants of forward_features/chunked_loss are bounded (per GPU x train/eval x Inductor size classes) but exceed Dynamo's default of 8;
 # past the limit a function silently runs eager. The value is thread-local, so it must be set in every thread that compiles (see MultiGpuGptModelDP)
 DYNAMO_RECOMPILE_LIMIT: int = 64
+
+def compute_dtype_stream(x: torch.Tensor) -> torch.Tensor:
+    """Embedding output in autocast's compute dtype: the fp32 master weights are cast per matmul by autocast anyway, and an fp32 residual stream doubles the activation memory of the whole stack (the 350M stopped fitting two 16 GB cards). Outside autocast (fp32 mode, inference) the stream keeps the weights' dtype."""
+    if x.is_cuda and x.dtype == torch.float32 and torch.is_autocast_enabled("cuda"):
+        return x.to(torch.get_autocast_dtype("cuda"))
+    return x
+
 
 def compute_rope_params(head_dim: int, theta_base: float = 10_000.0, context_length: int = 4096, freq_config: Optional[dict] = None) -> Tuple[torch.Tensor, torch.Tensor]:
     assert head_dim % 2 == 0, "head_dim must be even for RoPE"
@@ -120,6 +127,7 @@ class GptModel(nn.Module):
 
         if self.pos_emb_type == "absolute" and self.pos_emb is not None:
             x = safe_add(x, self.pos_emb(pos_ids).unsqueeze(0))
+        x = compute_dtype_stream(x)
 
         x = self.drop_emb(x)
 
@@ -169,9 +177,27 @@ class GptModel(nn.Module):
         return F.cross_entropy(logits, target_chunk, reduction="sum")
 
     def convert_to_float8(self):
-        """Swaps every Linear (including the tied LM head) for a torchao Float8Linear: fp8 tensor-core matmuls with tensorwise dynamic scaling and bf16 master weights (parameter names and checkpoints stay unchanged). Only pays off under torch.compile; eager fp8 is slower than bf16."""
+        """Swaps the transformer blocks' Linear layers for torchao Float8Linear: fp8 tensor-core matmuls with tensorwise dynamic scaling over the fp32 master weights (cast to fp8 on the fly each step; parameter names and checkpoints stay unchanged). Only pays off under torch.compile; eager fp8 is slower than bf16.
+        The LM head (and with tie_embeddings the token embedding matrix) stays in the autocast dtype: e4m3 keeps 3 mantissa bits and one scale covers the whole 50k x d matrix, so the rows of rare tokens (names, dates) are quantized to a handful of levels and the logits they produce are noisy, which is exactly the knowledge a small model struggles to keep; the head is ~15% of the model's matmul FLOPs, so most of the fp8 speedup remains."""
         # pad_inner_dim: fp8 GEMMs need 16-aligned inner dims; token counts are only aligned in pretraining (SFT pads batches to arbitrary lengths)
-        convert_to_float8_training(self, config=dataclasses.replace(Float8LinearConfig.from_recipe_name(FLOAT8_RECIPE), pad_inner_dim=True))
+        convert_to_float8_training(self, config=dataclasses.replace(Float8LinearConfig.from_recipe_name(FLOAT8_RECIPE), pad_inner_dim=True),
+                                   module_filter_fn=lambda mod, fqn: fqn != "out_head")
+        from torchao.float8.float8_linear import Float8Linear
+        if not getattr(Float8Linear, "_ailib_autocast_safe", False):
+            # Eager Float8Linear under autocast (sample generation in SFT/DPO, runs without --compile): the fp8 weight reports its fp32 master
+            # dtype, so autocast tries to cast it to the compute dtype inside the inner mm and aten.to.dtype is unsupported for Float8 tensors.
+            # Cast the input ourselves (what torchao does too) and run the layer with autocast off; compiled paths are unaffected.
+            torchao_forward = Float8Linear.forward
+
+            def autocast_safe_forward(self, input):
+                if input.is_cuda and torch.is_autocast_enabled("cuda"):
+                    input = input.to(torch.get_autocast_dtype("cuda"))
+                    with torch.amp.autocast("cuda", enabled=False):
+                        return torchao_forward(self, input)
+                return torchao_forward(self, input)
+
+            Float8Linear.forward = autocast_safe_forward
+            Float8Linear._ailib_autocast_safe = True
 
     def reset_kv_cache(self):
         for blk in self.trf_blocks:

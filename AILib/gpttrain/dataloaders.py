@@ -17,6 +17,8 @@ from gptmodel.Dataset import (
     StreamingTextDataset,
     StreamingInstructionDataset,
     StreamingPreferenceDataset,
+    plan_provenance,
+    precompute_streaming_steps,
 )
 from gptio.cache import precompute_dataset_steps
 from gptutils.consoleutils import print
@@ -55,11 +57,13 @@ def create_instruction_dataloaders(
     """
     files = [Path(f) for f in data]
     train_ds = StreamingInstructionDataset(files=files, tokenizer=tokenizer, args=args, max_length=max_length, is_train=True, device=device, prefetch_size=prefetch_size)
+    if args.precompute_total_steps:
+        precompute_streaming_steps(train_ds, "SFT")
     val_ds = StreamingInstructionDataset(files=files, tokenizer=tokenizer, args=args, max_length=max_length, is_train=False, device=device, prefetch_size=prefetch_size)
     pin_mem = (device != "cpu" and torch.cuda.is_available() and num_workers > 0)
     train_loader = DataLoader(train_ds, batch_size=None, pin_memory=pin_mem)
     val_loader = DataLoader(val_ds, batch_size=None, pin_memory=pin_mem)
-    print(f"[Streaming Loader] Initialized streaming instruction loader across {len(files)} file(s): ~{len(train_loader):,} train steps, ~{len(val_loader):,} val steps.")
+    print(f"[Streaming Loader] Initialized streaming instruction loader across {len(files)} file(s): ~{len(train_loader):,} train steps, ~{len(val_loader):,} val steps | step plan: {plan_provenance(train_ds)}.")
     return train_loader, val_loader, []
 
 
@@ -77,9 +81,11 @@ def create_preference_dataloaders(
     """
     files = [Path(f) for f in data]
     train_ds = StreamingPreferenceDataset(files=files, tokenizer=tokenizer, args=args, max_length=max_length, is_train=True, device=device, prefetch_size=prefetch_size)
+    if args.precompute_total_steps:
+        precompute_streaming_steps(train_ds, "DPO")
     val_ds = StreamingPreferenceDataset(files=files, tokenizer=tokenizer, args=args, max_length=max_length, is_train=False, device=device, prefetch_size=prefetch_size)
     pin_mem = (device != "cpu" and torch.cuda.is_available() and num_workers > 0)
     train_loader = DataLoader(train_ds, batch_size=None, pin_memory=pin_mem)
     val_loader = DataLoader(val_ds, batch_size=None, pin_memory=pin_mem)
-    print(f"[Streaming Loader] Initialized streaming preference loader across {len(files)} file(s): ~{len(train_loader):,} train steps, ~{len(val_loader):,} val steps.")
+    print(f"[Streaming Loader] Initialized streaming preference loader across {len(files)} file(s): ~{len(train_loader):,} train steps, ~{len(val_loader):,} val steps | step plan: {plan_provenance(train_ds)}.")
     return train_loader, val_loader, []

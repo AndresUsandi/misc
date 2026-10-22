@@ -1,0 +1,164 @@
+[Options] Overrode 16 parameter(s) from 'test-data-text.options-train.json': batch_size=4, accum_steps=2, num_epochs=1, chunk_size=512, train_ratio=0.8, test_ratio=0.2, vocab_padded=True, temperature=0.8, top_k=40, save_timeout=30, learning_rate=0.0005, resume=False, step_limit=5, eval_freq=2, single_gpu=True, precompute_total_steps=False
+=================================================================
+      FULLY-OPTIMIZED GPT TRAINING
+=================================================================
+Model: test-data-text
+Device: cuda:0 | Active GPUs: 1 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.bfloat16)
+Model: test-data-text (8 layers, 512 emb, 8 heads)
+Batch Size: 4 (Effective: 8) | Accum Steps: 2
+Epochs: 1 | AdamW LR: 0.0005 | Muon LR: 0.001 | Warmup Steps: 100
+Vocab: 50,304 | Context: 512 | Layers: 8 | Dim: 512 | Heads: 8
+Training Data Path: bin\test-data-text\data\Training
+Total training files found: 1
+  [1/1] bin\test-data-text\data\Training\TheVeredict\the-verdict.txt
+=================================================================
+torch.compile skipped (default: disabled, use --compile to enable)
+Optimizer Configured: 1 ([Single Fused AdamW for all layers, default])
+[Notice] Resume disabled. Starting TRAIN from initialized weights.
+[Training Plan] Resumed from step 0. Training for 5 steps -> Target step: 5.
+[Checkpointing] Periodic saves enabled every 1000 steps -> 'test-data-text'.
+[Data] 1 file(s): 5,148 tokens -> 8 train windows x 512 (2 steps/epoch of 4, 2 total global steps), 2 val windows | fixed eval buffers: 1 val + 1 train batch(es) sampled across all files.
+==================================================
+Starting Epoch 1/1
+==================================================
+Ep 1/1 (Step 000002/000002 - 100% | Global 000002/000002 - 100%): Train 10.611, Val 10.671 | PPL: 43108.74 | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000015
+[VRAM cuda:0] peak 1.547 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.784 | now 0.826 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Sample: <text>
+Val by dataset: TheVeredict 10.671
+[VRAM cuda:0] peak 1.070 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.306 | now 0.826 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Progress: 2/2 steps | Session elapsed: * (*) | ETA for remaining steps: * (*)
+[gptio] Saved TRAIN checkpoint (Step 2) to: bin\test-data-text\test-data-text.chk.trn
+[gptio] Saved TRAIN checkpoint (Step 2) to: bin\test-data-text\test-data-text.chk.trn
+[modelio] Successfully saved clean final model to: bin\test-data-text\test-data-text.pth
+============================================================
+               TRAINING COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 4,096 (ideal: 1B-6.7B)
+  Final Losses       : Train 10.611 (ideal: 3.90-4.05) | Val 10.671 (ideal: 3.95-4.10)
+  Val - Train Gap    : +0.061 (UNDERFITTING!)
+  Perplexity         : 43108.74 (ideal: 51.7-60.1)
+  Model              : test-data-text (~51.2M params)
+============================================================
+[Plot] Saved pretraining loss curves to 'bin\test-data-text\test-data-text-loss-plot-train.pdf'.
+[Options] Overrode 14 parameter(s) from 'test-data-text.options-tune.json': batch_size=4, accum_steps=2, num_epochs=1, max_length=256, mask_prompt=False, chunk_size=128, train_ratio=0.8, test_ratio=0.1, verbose=True, eval_freq=2, learning_rate=0.0005, step_limit=5, single_gpu=True, precompute_total_steps=True
+[Memory] cuda:0: allocator cache capped at 15.10 GiB of 15.89 GiB (* GiB already in use as seen by CUDA).
+=================================================================
+      FULLY-OPTIMIZED GPT INSTRUCTION FINE-TUNING (SFT)
+=================================================================
+Device: cuda:0 | Active GPUs: 1 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.bfloat16)
+Model: test-data-text (8 layers, 512 emb, 8 heads)
+Batch Size: 4 (Accum Steps: 2) | Epochs: 1 | Peak LR: 0.000500
+Instruction Data: bin\test-data-text\data\Tuning (1 file(s))
+  [1/1] combined_1.txt
+=================================================================
+[Resume] Loaded base pre-trained weights for TUNE. Starting TUNE from Step 0.
+[Training Plan] This pass streamed 30 batches where the plan said 27 (+11.1%); the steps cache now holds the exact count and every later plan uses it (a resumed run re-anchors its LR cosine on the new horizon instead of jumping).
+[Steps Precompute] SFT: streamed the first epoch's 30 batches on the CPU in * to record the exact step counts of 1 file(s) (steps_cache.json).
+[Validation Buffer] Built fixed stratified SFT validation buffer: 8 batches across 1 file(s).
+[Streaming Loader] Initialized streaming instruction loader across 1 file(s): ~30 train steps, ~8 val steps | step plan: exact (steps cache).
+[Training Plan] Target epochs: 1 | Steps per epoch: 30 (Optimizer updates: 15) | Planned updates: 15 | Step plan: exact (steps cache)
+[Training Plan] Resumed from step 0. Training for 5 steps -> Target step: 5.
+[Gradient Accumulation] Accumulating gradients over 2 sub-steps before optimizer update.
+[Checkpointing] Model target: 'test-data-text'
+[Initial State Evaluation]
+  Initial Train Loss : 10.7612
+  Initial Val Loss   : 10.7660 (Seq: 10.7660) (PPL: Resp 47382.33 | Seq 47382.33) (Eval took *)
+======================================================================
+Starting Fine-Tuning Epoch 1/1
+======================================================================
+Ep 1/1 (Step 000004/000030 - 13% | Global 000002/000015 - 13%): Train 10.164, Val 9.112 (Seq 9.112) | PPL: 9062.90 (Seq 9062.90) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000478
+[VRAM cuda:0] peak 1.628 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.865 | now 0.635 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+  [Sample]: <text>
+Ep 1/1 (Step 000008/000030 - 27% | Global 000004/000015 - 27%): Train 9.083, Val 8.713 (Seq 8.713) | PPL: 6079.34 (Seq 6079.34) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000417
+[VRAM cuda:0] peak 1.623 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.860 | now 0.635 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+  [Sample]: <text>
+Ep 1/1 (Step 000010/000030 - 33% | Global 000005/000015 - 33%): Train 8.712, Val 8.974 (Seq 8.974) | PPL: 7895.66 (Seq 7895.66) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000375
+[VRAM cuda:0] peak 1.623 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.860 | now 0.635 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+  [Sample]: <text>
+[gptio] Saved TUNE checkpoint (Step 5) to: bin\test-data-text\test-data-text.chk.sft
+[Step Limit Reached] Reached target step 5. Pausing fine-tuning cleanly.
+============================================================
+               FINE-TUNING COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 8,807 (ideal: 200M-1B)
+  Final Losses       : Train 8.712 | Val 8.974 (Seq: 8.974, ideal: 2.25-2.55)
+  Val - Train Gap    : +0.263 (UNDERFITTING!)
+  Perplexity         : Resp 7895.66 | Seq 7895.66 (ideal: 9.5-12.8)
+  Model              : test-data-text (~51.2M params)
+============================================================
+[Plot] Saved fine-tuning loss curves to 'bin\test-data-text\test-data-text-loss-plot-tune.pdf'.
+[Options] Overrode 14 parameter(s) from 'test-data-text.options-optimize.json': batch_size=2, accum_steps=2, num_epochs=1, max_length=1024, beta=0.2, train_ratio=0.8, test_ratio=0.1, verbose=True, eval_freq=2, learning_rate=5e-06, resume=False, step_limit=5, single_gpu=True, precompute_total_steps=True
+[Memory] cuda:0: allocator cache capped at 15.10 GiB of 15.89 GiB (* GiB already in use as seen by CUDA).
+=================================================================
+      GPT DIRECT PREFERENCE OPTIMIZATION (DPO)
+=================================================================
+Policy Device: cuda:0 | Ref Device: cuda:0 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.bfloat16)
+Model: test-data-text (8 layers, 512 emb, 8 heads)
+Batch Size: 2 (Accum Steps: 2) | Epochs: 1 | LR: 0.0000050 | Beta: 0.2
+Preference Data: bin\test-data-text\data\Optimizing (1 file(s))
+  [1/1] preference_combined_1.json
+Base Model: test-data-text
+=================================================================
+[Reference Model] Initialized frozen reference model from SFT checkpoint (.chk.sft) on cuda:0.
+[Policy Model] Resume disabled. Initialized policy weights from base SFT checkpoint (.chk.sft).
+[Training Plan] This pass streamed 81 batches where the plan said 76 (+6.6%); the steps cache now holds the exact count and every later plan uses it (a resumed run re-anchors its LR cosine on the new horizon instead of jumping).
+[Steps Precompute] DPO: streamed the first epoch's 81 batches on the CPU in * to record the exact step counts of 1 file(s) (steps_cache.json).
+[Validation Buffer] Built fixed stratified DPO validation buffer: 16 batches across 1 file(s).
+[Streaming Loader] Initialized streaming preference loader across 1 file(s): ~81 train steps, ~16 val steps | step plan: exact (steps cache).
+[DPO Plan] Target epochs: 1 | Steps per epoch: 81 (Updates: 41) | Total updates: 41 | Step plan: exact (steps cache)
+[DPO Plan] Resumed from step 0. Training for 5 steps -> Target step: 5.
+[Gradient Accumulation] Accumulating gradients over 2 sub-steps before optimizer update.
+[Checkpointing] Model target: 'test-data-text'
+[Initial State Evaluation]
+  Initial Train Loss : 5.4122 | Margin: +0.0000 | Chosen vs ref: +0.0000 | Acc: *
+  Initial Val Loss   : 5.4954 | Margin: +0.0000 | Chosen vs ref: +0.0000 | Acc: * (Eval took *)
+======================================================================
+Starting DPO Optimization Epoch 1/1
+======================================================================
+Ep 1/1 (Step 000004/000081 - 5% | Global 000002/000041 - 5%): Train 5.398, Val 5.489 | Margin: Tr +0.000, Val -0.007 | Acc: * | Chosen vs ref: Tr +0.028, Val +0.014 | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.0000050
+[VRAM cuda:0] peak 1.509 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.746 | now 0.826 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+  [Sample Response]: <text>
+Ep 1/1 (Step 000008/000081 - 10% | Global 000004/000041 - 10%): Train 5.384, Val 5.472 | Margin: Tr +0.001, Val -0.000 | Acc: * | Chosen vs ref: Tr +0.055, Val +0.046 | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.0000049
+[VRAM cuda:0] peak 1.514 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.751 | now 0.826 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+  [Sample Response]: <text>
+Ep 1/1 (Step 000010/000081 - 12% | Global 000005/000041 - 12%): Train 5.378, Val 5.468 | Margin: Tr -0.001, Val -0.001 | Acc: * | Chosen vs ref: Tr +0.068, Val +0.055 | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.0000049
+[VRAM cuda:0] peak 1.524 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.761 | now 0.826 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+  [Sample Response]: <text>
+[gptio] Saved OPTIMIZE checkpoint (Step 5) to: bin\test-data-text\test-data-text.chk.dpo
+[Step Limit Reached] Reached target step 5. Pausing DPO optimization cleanly.
+----------------------------------------------------------------------
+[Sample Model Response @ Epoch 1]
+  Instruction : <|im_start|>user
+Evaluate the following phrase by transforming it into the spelling given.
+freind -
+  Preferred   : The spelling of the given phrase "freind" is incorrect, the correct spelling is "friend".
+  Model Output: <text>
+----------------------------------------------------------------------
+[VRAM cuda:0] peak 0.920 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.156 | now 0.826 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+File processed: * | Total elapsed: * | ETA for remaining files: *
+============================================================
+               DPO OPTIMIZATION COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 8,583 (ideal: 25.6M-256.1M)
+  Final Losses       : Train 5.378 | Val 5.468
+  Val - Train Gap    : +0.090 (OK!)
+  Final Margins      : Train -0.001 | Val -0.001
+  Model              : test-data-text (~51.2M params)
+============================================================
+[Plot] Saved DPO telemetry curves to 'bin\test-data-text\test-data-text-loss-plot-optimize.pdf'.
+[Options] Overrode 5 parameter(s) from 'test-data-text.options-infer.json': temperature=0.8, top_k=40, top_p=0.95, single_gpu=True, gpu_index=0
+[SpellCheck] Autocorrect initialized (SymSpell dictionary-based cleanup active).
+============================================================
+           Interactive GPT Conversation Console
+============================================================
+Model Target    : test-data-text
+Precision       : FP16 (dtype: torch.bfloat16)
+Device          : cuda:0 (Available GPUs: 0)
+Temperature     : 0.8 | Top-K: 40 | Top-P: 0.95
+System Prompt   : You are a helpful and coherent AI assistant.
+============================================================
+[modelio] Successfully loaded model weights from: bin\test-data-text\test-data-text.pth
+⚡ [Performance] Response: * tok/s | Session Avg: * tok/s | Tokens: * in *

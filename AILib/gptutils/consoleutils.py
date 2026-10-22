@@ -1,6 +1,7 @@
 # Copyright (c) Sebastian Raschka under Apache License 2.0 (see LICENSE.txt).
 # Console and terminal UI utilities (progress bars, formatting, telemetry display).
 
+import os
 import sys
 import shutil
 import time
@@ -219,34 +220,98 @@ tprint = print_with_timestamp
 print = print_with_timestamp
 
 
-def format_vram_str(device: Optional[Any] = None) -> str:
-    """Formats VRAM allocation string for single or multi-GPU setups."""
+_PDH: Any = None  # Windows PDH query for this process's GPU memory (what Task Manager shows): None = not opened yet, False = unavailable
+
+
+def _process_gpu_bytes() -> Optional[int]:
+    """Dedicated GPU memory of this process as the OS accounts it, summed over adapters: torch's pool plus what torch's counters never see
+    (CUDA context, cuBLAS/cuDNN workspaces, compiled kernels). Windows: the 'GPU Process Memory' performance counters (Task Manager's
+    'Dedicated GPU memory'); elsewhere NVML per-process usage (needs pynvml). None when unavailable."""
+    global _PDH
+    if _PDH is False:
+        return None
+    try:
+        if sys.platform == "win32":
+            import ctypes
+            pdh = ctypes.windll.pdh
+            if _PDH is None:
+                q, c = ctypes.c_void_p(), ctypes.c_void_p()
+                if pdh.PdhOpenQueryW(None, 0, ctypes.byref(q)) or pdh.PdhAddEnglishCounterW(q, f"\\GPU Process Memory(pid_{os.getpid()}_*)\\Dedicated Usage", 0, ctypes.byref(c)):
+                    return None
+                _PDH = (q, c)
+            q, c = _PDH
+            size, count = ctypes.c_ulong(0), ctypes.c_ulong(0)
+            if pdh.PdhCollectQueryData(q):
+                return None
+            pdh.PdhGetFormattedCounterArrayW(c, 0x400, ctypes.byref(size), ctypes.byref(count), None)  # PDH_FMT_LARGE; sizes the buffer
+            buf = ctypes.create_string_buffer(max(1, size.value))
+            if pdh.PdhGetFormattedCounterArrayW(c, 0x400, ctypes.byref(size), ctypes.byref(count), buf):
+                return None
+
+            class Item(ctypes.Structure):  # PDH_FMT_COUNTERVALUE_ITEM_W: name pointer, status, 64-bit value (one per adapter instance)
+                _fields_ = [("name", ctypes.c_wchar_p), ("status", ctypes.c_ulong), ("value", ctypes.c_longlong)]
+            items = ctypes.cast(buf, ctypes.POINTER(Item))
+            return sum(items[i].value for i in range(count.value))
+        import pynvml
+        pynvml.nvmlInit()
+        pid = os.getpid()
+        return sum(p.usedGpuMemory or 0 for i in range(pynvml.nvmlDeviceGetCount()) for p in pynvml.nvmlDeviceGetComputeRunningProcesses(pynvml.nvmlDeviceGetHandleByIndex(i)) if p.pid == pid)
+    except Exception:
+        _PDH = False
+        return None
+
+
+def _bytes_per_device(tensors: Any) -> dict:
+    """Sums tensor storage bytes per CUDA device index (torchao 8-bit optimizer states count their int8 codes and scales, not the dequantized view)."""
+    out: dict = {}
+    for t in tensors:
+        if t is not None and t.is_cuda:
+            inner = [getattr(t, a) for a in ("codes", "scale", "qmap") if torch.is_tensor(getattr(t, a, None))]
+            out[t.device.index] = out.get(t.device.index, 0) + sum(x.numel() * x.element_size() for x in (inner or [t]))
+    return out
+
+
+def format_vram_report(model: Any = None, optimizer: Any = None, device: Optional[Any] = None) -> str:
+    """One '[VRAM cuda:N]' line per CUDA device this process has used (empty on CPU), each with: the peak torch allocated since the previous report (the
+    counter is reset afterwards) split into weights (+buffers), gradients, optimizer state and the rest (activations, autocast weight copies,
+    loss chunks, temporaries; what the batch costs); the current allocation; the allocator's reserved pool and its unused part (fragmentation
+    and headroom kept for reuse); the process total the OS sees (see _process_gpu_bytes; one figure, all adapters); the device's total use incl.
+    other processes; and how often the allocator had to free cached blocks and retry (memory pressure). Weights/grads/optimizer need the model
+    and optimizer(s); without them those parts read 0 and 'other' is the whole peak. 'grads' is the room the gradients take while they exist
+    (one gradient per trainable tensor on the device, plus the DP wrappers' fp32 accumulators), not what happens to be alive at this instant:
+    gradients live only between a backward and the following zero_grad, and the evaluations run on either side of it depending on the stage."""
     if not torch.cuda.is_available() or str(device) == "cpu":
         return ""
-    if torch.cuda.device_count() > 1:
-        vram_parts = [
-            f"cuda:{d}: {torch.cuda.memory_allocated(d) / (1024**3):.1f}G"
-            for d in range(torch.cuda.device_count())
-        ]
-        return f" | VRAM: [{', '.join(vram_parts)}]"
-    else:
-        d = device if device is not None else 0
-        vram_alloc = torch.cuda.memory_allocated(d) / (1024 ** 3)
-        vram_res = torch.cuda.memory_reserved(d) / (1024 ** 3)
-        return f" | VRAM: {vram_alloc:.2f}G/{vram_res:.2f}G"
+    GB = 1024 ** 3
+    opts = optimizer if isinstance(optimizer, list) else [optimizer] if optimizer is not None else []
+    # The multi-GPU wrappers' parameters() cover only the fp32 masters (DP) or the shards (ZeRO-1): the compute copies on every GPU
+    # (raw_replicas) and the fp32 gradient accumulators of the copies (_grad_bufs) are reached explicitly, deduplicated by identity
+    mods = [m for m in [model, getattr(model, "raw_model", None)] + list(getattr(model, "raw_replicas", None) or []) if m is not None]
+    params = list({id(p): p for m in mods for p in m.parameters()}.values())
+    weights = _bytes_per_device(params + list({id(b): b for m in mods for b in m.buffers()}.values()))
+    grads = _bytes_per_device([p for p in params if p.requires_grad] + [g for bufs in getattr(model, "_grad_bufs", None) or [] for g in bufs])
+    optim = _bytes_per_device(v for o in opts for st in o.state.values() for v in st.values() if torch.is_tensor(v))
+    proc = _process_gpu_bytes()
+    lines = []
+    # devices this process never used (single-GPU run on a multi-GPU machine) are left out: nothing to report, and mem_get_info would create a CUDA context on them
+    active = [d for d in range(torch.cuda.device_count()) if torch.cuda.max_memory_allocated(d) or torch.cuda.memory_allocated(d) or torch.cuda.memory_reserved(d)]
+    for d in active:
+        peak, now, reserved = torch.cuda.max_memory_allocated(d), torch.cuda.memory_allocated(d), torch.cuda.memory_reserved(d)
+        torch.cuda.reset_peak_memory_stats(d)
+        free, total = torch.cuda.mem_get_info(d)
+        static = weights.get(d, 0) + grads.get(d, 0) + optim.get(d, 0)
+        used = total - free
+        others = f" (others {max(0, used - proc) / GB:.2f})" if proc is not None and len(active) == 1 else ""  # the process figure spans all GPUs it uses, so 'others' is only well-defined when that is one
+        lines.append(f"[VRAM cuda:{d}] peak {peak / GB:.3f} GB = weights {weights.get(d, 0) / GB:.3f} + grads {grads.get(d, 0) / GB:.3f} + optim {optim.get(d, 0) / GB:.3f} + other {max(0, peak - static) / GB:.3f}"
+                     f" | now {now / GB:.3f} | reserved {reserved / GB:.3f} (unused {(reserved - now) / GB:.3f}) | process {'n/a' if proc is None else f'{proc / GB:.2f}'}"
+                     f" | device {used / GB:.2f}/{total / GB:.2f} used{others} | alloc retries {torch.cuda.memory_stats(d).get('num_alloc_retries', 0)}")
+    return "\n".join(lines)
 
 
-def print_gpu_memory_breakdown() -> None:
-    """Prints per-GPU allocated and reserved VRAM breakdown."""
-    if not torch.cuda.is_available():
-        return
-    mem_info = []
-    for d_idx in range(torch.cuda.device_count()):
-        alloc = torch.cuda.memory_allocated(d_idx) / (1024 ** 3)
-        res = torch.cuda.memory_reserved(d_idx) / (1024 ** 3)
-        dev_name = torch.cuda.get_device_name(d_idx)
-        mem_info.append(f"GPU {d_idx} ({dev_name}): {alloc:.3f} GB Alloc / {res:.3f} GB Res")
-    print(" | ".join(mem_info))
+def print_gpu_memory_breakdown(model: Any = None, optimizer: Any = None) -> None:
+    """Prints the per-GPU memory report line(s) (see format_vram_report)."""
+    for line in format_vram_report(model, optimizer).splitlines():
+        print(line)  # one print per device line so each gets its own timestamp
 
 
 def format_elapsed_time(seconds: float) -> str:
@@ -285,13 +350,15 @@ def print_step_telemetry(
     lr_precision: int = 6,
     val_seq_loss: Optional[float] = None,
     val_seq_ppl: Optional[float] = None,
+    train_chosen: Optional[float] = None,
+    val_chosen: Optional[float] = None,
 ) -> None:
     """Prints standard step telemetry log to console and log file."""
     step_pct = round(100.0 * step / total_steps) if total_steps and total_steps > 0 else 0
     global_pct = round(100.0 * global_step / global_total_steps) if global_total_steps and global_total_steps > 0 else 0
 
     if vram_str is None:
-        vram_str = format_vram_str(device)
+        vram_str = format_vram_report(device=device)
 
     header = f"Ep {epoch+1}/{num_epochs} (Step {step:06d}/{total_steps:06d} - {step_pct}% | Global {global_step:06d}/{global_total_steps:06d} - {global_pct}%): "
     if val_seq_loss is not None:
@@ -306,16 +373,20 @@ def print_step_telemetry(
             metric_str = f"PPL: {val_ppl:.2f} | "
     elif train_margin is not None and val_margin is not None and train_acc is not None and val_acc is not None:
         metric_str = f"Margin: Tr {train_margin:+.3f}, Val {val_margin:+.3f} | Acc: Tr {train_acc * 100:.1f}%, Val {val_acc * 100:.1f}% | "
+        if train_chosen is not None and val_chosen is not None:  # DPO: mean per-token log-prob of the chosen answers, policy minus reference. Falling well below 0 = the model is losing the answers themselves
+            metric_str += f"Chosen vs ref: Tr {train_chosen:+.3f}, Val {val_chosen:+.3f} | "
     else:
         metric_str = ""
 
     tail = (
         f"Step tok/sec: {round(tps):,}, Avg tok/sec: {round(avg_tps):,} | "
         f"Eval: {eval_duration:.2f}s | "
-        f"LR: {lr:.{lr_precision}f}{vram_str}"
+        f"LR: {lr:.{lr_precision}f}"
     )
 
     print(f"{header}{loss_str}{metric_str}{tail}")
+    for line in (vram_str or "").splitlines():
+        print(line)  # the memory report goes on its own line per device (each timestamped), see format_vram_report
 
 
 def str_to_bool(v: Any) -> bool:

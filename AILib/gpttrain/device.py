@@ -69,9 +69,12 @@ def setup_devices_and_allocator(
             device = torch.device("cpu")
         ref_device = device
 
-    # Variable-length SFT/DPO batches fragment the allocator cache: cap cache per card at a fixed fraction
+    # Variable-length SFT/DPO batches fragment the allocator cache: cap cache per card at a fixed fraction. This assignment is the one the
+    # allocator reads (it parses the env at first CUDA init, below, so train.py's import-time value only applies to pretraining).
+    # expandable_segments (Linux only, ignored with a filtered warning on Windows) lets freed memory be reused across the varying shapes: the 350M
+    # SFT on 2 x 16 GB held ~2 GiB of reserved-but-unallocated cache without it and OOMed on the largest batches (Windows paged that to RAM).
     if stage != STAGE_TRAIN and use_cuda:
-        os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "garbage_collection_threshold:0.8"
+        os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True,garbage_collection_threshold:0.8"
         for d in (range(torch.cuda.device_count()) if not args.single_gpu else [device.index]):
             free, total = torch.cuda.mem_get_info(d)
             torch.cuda.set_per_process_memory_fraction(CUDA_ALLOCATOR_MEMORY_FRACTION, d)

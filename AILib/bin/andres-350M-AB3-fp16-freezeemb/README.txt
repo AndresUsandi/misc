@@ -1,0 +1,1 @@
+A/B test of andres-350M-2 with one change: freeze_embeddings: true in SFT and DPO (pretraining is identical to the baseline; the flag does not apply there). Compare its checkpoints, loss curves, VRAM and tok/sec against andres-350M-2.

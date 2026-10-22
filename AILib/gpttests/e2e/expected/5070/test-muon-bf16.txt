@@ -1,0 +1,306 @@
+[Options] Overrode 12 parameter(s) from 'test-muon-bf16.options-train.json': batch_size=4, accum_steps=2, num_epochs=1, use_muon=True, muon_lr=0.02, learning_rate=0.0003, weight_decay=0.01, resume=False, step_limit=5, eval_freq=2, single_gpu=True, precompute_total_steps=False
+=================================================================
+      FULLY-OPTIMIZED GPT TRAINING
+=================================================================
+Model: test-muon-bf16
+Device: cuda:0 | Active GPUs: 1 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.bfloat16)
+Model: test-muon-bf16 (8 layers, 512 emb, 8 heads)
+Batch Size: 4 (Effective: 8) | Accum Steps: 2
+Epochs: 1 | AdamW LR: 0.0003 | Muon LR: 0.02 | Warmup Steps: 100
+Vocab: 50,304 | Context: 512 | Layers: 8 | Dim: 512 | Heads: 8
+Training Data Path: bin\test-muon-bf16\data\Training
+Total training files found: 1
+  [1/1] bin\test-muon-bf16\data\Training\TheVeredict\the-verdict.txt
+=================================================================
+torch.compile skipped (default: disabled, use --compile to enable)
+Optimizers Configured: 2 ([CustomMuon (2D matrices), Fused AdamW (1D/Norms)])
+[Notice] Resume disabled. Starting TRAIN from initialized weights.
+[Training Plan] Resumed from step 0. Training for 5 steps -> Target step: 5.
+[Checkpointing] Periodic saves enabled every 1000 steps -> 'test-muon-bf16'.
+[Data] 1 file(s): 5,148 tokens -> 9 train windows x 512 (2 steps/epoch of 4, 2 total global steps), 1 val windows | fixed eval buffers: 1 val + 1 train batch(es) sampled across all files.
+==================================================
+Starting Epoch 1/1
+==================================================
+Ep 1/1 (Step 000002/000002 - 100% | Global 000002/000002 - 100%): Train 10.815, Val 10.862 | PPL: 52168.15 | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000009
+[VRAM cuda:0] peak 1.547 GB = weights 0.191 + grads 0.191 + optim 0.288 + other 0.877 | now 0.638 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Sample: <text>
+Val by dataset: TheVeredict 10.862
+[VRAM cuda:0] peak 0.882 GB = weights 0.191 + grads 0.191 + optim 0.288 + other 0.213 | now 0.638 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Progress: 2/2 steps | Session elapsed: * (*) | ETA for remaining steps: * (*)
+[gptio] Saved TRAIN checkpoint (Step 2) to: bin\test-muon-bf16\test-muon-bf16.chk.trn
+[gptio] Saved TRAIN checkpoint (Step 2) to: bin\test-muon-bf16\test-muon-bf16.chk.trn
+[modelio] Successfully saved clean final model to: bin\test-muon-bf16\test-muon-bf16.pth
+============================================================
+               TRAINING COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 4,096 (ideal: 1B-6.7B)
+  Final Losses       : Train 10.815 (ideal: 3.90-4.05) | Val 10.862 (ideal: 3.95-4.10)
+  Val - Train Gap    : +0.047 (UNDERFITTING!)
+  Perplexity         : 52168.15 (ideal: 51.7-60.1)
+  Model              : test-muon-bf16 (~51.2M params)
+============================================================
+[Plot] Saved pretraining loss curves to 'bin\test-muon-bf16\test-muon-bf16-loss-plot-train.pdf'.
+[Options] Overrode 12 parameter(s) from 'test-muon-bf16.options-train.json': batch_size=4, accum_steps=2, num_epochs=1, use_muon=True, muon_lr=0.02, learning_rate=0.0003, weight_decay=0.01, resume=False, step_limit=5, eval_freq=2, single_gpu=True, precompute_total_steps=False
+=================================================================
+      FULLY-OPTIMIZED GPT TRAINING
+=================================================================
+Model: test-muon-bf16
+Device: cuda:0 | Active GPUs: 1 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.bfloat16)
+Model: test-muon-bf16 (8 layers, 512 emb, 8 heads)
+Batch Size: 4 (Effective: 8) | Accum Steps: 2
+Epochs: 1 | AdamW LR: 0.0003 | Muon LR: 0.02 | Warmup Steps: 100
+Vocab: 50,304 | Context: 512 | Layers: 8 | Dim: 512 | Heads: 8
+Training Data Path: bin\test-muon-bf16\data\Training
+Total training files found: 1
+  [1/1] bin\test-muon-bf16\data\Training\TheVeredict\the-verdict.txt
+=================================================================
+torch.compile skipped (default: disabled, use --compile to enable)
+[Low-VRAM Optimization] Muon momentum buffers stored in bf16 (halves the Muon optimizer state; weights and Newton-Schulz stay fp32).
+Optimizers Configured: 2 ([CustomMuon (2D matrices), Fused AdamW (1D/Norms)])
+[Notice] Resume disabled. Starting TRAIN from initialized weights.
+[Training Plan] Resumed from step 0. Training for 5 steps -> Target step: 5.
+[Checkpointing] Periodic saves enabled every 1000 steps -> 'test-muon-bf16'.
+[Data] 1 file(s): 5,148 tokens -> 9 train windows x 512 (2 steps/epoch of 4, 2 total global steps), 1 val windows | fixed eval buffers: 1 val + 1 train batch(es) sampled across all files.
+==================================================
+Starting Epoch 1/1
+==================================================
+Ep 1/1 (Step 000002/000002 - 100% | Global 000002/000002 - 100%): Train 10.815, Val 10.862 | PPL: 52175.17 | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000009
+[VRAM cuda:0] peak 1.547 GB = weights 0.191 + grads 0.191 + optim 0.241 + other 0.924 | now 0.591 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Sample: <text>
+Val by dataset: TheVeredict 10.862
+[VRAM cuda:0] peak 0.835 GB = weights 0.191 + grads 0.191 + optim 0.241 + other 0.213 | now 0.591 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Progress: 2/2 steps | Session elapsed: * (*) | ETA for remaining steps: * (*)
+[gptio] Saved TRAIN checkpoint (Step 2) to: bin\test-muon-bf16\test-muon-bf16.chk.trn
+[gptio] Saved TRAIN checkpoint (Step 2) to: bin\test-muon-bf16\test-muon-bf16.chk.trn
+[modelio] Successfully saved clean final model to: bin\test-muon-bf16\test-muon-bf16.pth
+============================================================
+               TRAINING COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 4,096 (ideal: 1B-6.7B)
+  Final Losses       : Train 10.815 (ideal: 3.90-4.05) | Val 10.862 (ideal: 3.95-4.10)
+  Val - Train Gap    : +0.047 (UNDERFITTING!)
+  Perplexity         : 52175.17 (ideal: 51.7-60.1)
+  Model              : test-muon-bf16 (~51.2M params)
+============================================================
+[Plot] Saved pretraining loss curves to 'bin\test-muon-bf16\test-muon-bf16-loss-plot-train.pdf'.
+[Options] Overrode 11 parameter(s) from 'test-muon-bf16.options-tune.json': batch_size=4, accum_steps=2, num_epochs=2, use_muon=True, muon_lr=0.02, learning_rate=0.0003, max_length=512, step_limit=5, eval_freq=2, single_gpu=True, precompute_total_steps=True
+[Memory] cuda:0: allocator cache capped at 15.10 GiB of 15.89 GiB (* GiB already in use as seen by CUDA).
+=================================================================
+      FULLY-OPTIMIZED GPT INSTRUCTION FINE-TUNING (SFT)
+=================================================================
+Device: cuda:0 | Active GPUs: 1 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.bfloat16)
+Model: test-muon-bf16 (8 layers, 512 emb, 8 heads)
+Batch Size: 4 (Accum Steps: 2) | Epochs: 2 | Peak LR: 0.000300
+Instruction Data: bin\test-muon-bf16\data\Tuning (1 file(s))
+  [1/1] combined_1.txt
+=================================================================
+[Low-VRAM Optimization] Muon momentum buffers stored in bf16 (halves the Muon optimizer state; weights and Newton-Schulz stay fp32).
+[Optimizer] Selected Hybrid CustomMuon (2D weights) + Fused AdamW (1D/Norms/Embeddings).
+[Fine-Tuning] Resume disabled. Initialized model from base pre-trained checkpoint (.chk.trn). Starting Fine-Tuning from Step 0.
+[Training Plan] This pass streamed 19 batches where the plan said 15 (+26.7%); the steps cache now holds the exact count and every later plan uses it (a resumed run re-anchors its LR cosine on the new horizon instead of jumping).
+[Steps Precompute] SFT: streamed the first epoch's 19 batches on the CPU in * to record the exact step counts of 1 file(s) (steps_cache.json).
+[Validation Buffer] Built fixed stratified SFT validation buffer: 8 batches across 1 file(s).
+[Streaming Loader] Initialized streaming instruction loader across 1 file(s): ~19 train steps, ~8 val steps | step plan: exact (steps cache).
+[Training Plan] Target epochs: 2 | Steps per epoch: 19 (Optimizer updates: 10) | Planned updates: 20 | Step plan: exact (steps cache)
+[Training Plan] Resumed from step 0. Training for 5 steps -> Target step: 5.
+[Gradient Accumulation] Accumulating gradients over 2 sub-steps before optimizer update.
+[Checkpointing] Model target: 'test-muon-bf16'
+[Initial State Evaluation]
+  Initial Train Loss : 10.8838
+  Initial Val Loss   : 10.8503 (Seq: 10.9088) (PPL: Resp 51547.74 | Seq 54657.94) (Eval took *)
+======================================================================
+Starting Fine-Tuning Epoch 1/2
+======================================================================
+Ep 1/2 (Step 000004/000019 - 21% | Global 000002/000020 - 10%): Train 10.412, Val 9.600 (Seq 9.927) | PPL: 14761.07 (Seq 20471.31) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.019512
+[VRAM cuda:0] peak 1.589 GB = weights 0.191 + grads 0.191 + optim 0.241 + other 0.967 | now 0.494 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Ep 1/2 (Step 000008/000019 - 42% | Global 000004/000020 - 20%): Train 9.126, Val 8.986 (Seq 9.559) | PPL: 7993.14 (Seq 14176.24) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.018097
+[VRAM cuda:0] peak 1.785 GB = weights 0.191 + grads 0.191 + optim 0.241 + other 1.162 | now 0.494 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Ep 1/2 (Step 000010/000019 - 53% | Global 000005/000020 - 25%): Train 9.459, Val 8.714 (Seq 9.310) | PPL: 6086.07 (Seq 11052.14) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.017081
+[VRAM cuda:0] peak 1.586 GB = weights 0.191 + grads 0.191 + optim 0.241 + other 0.964 | now 0.494 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+[gptio] Saved TUNE checkpoint (Step 5) to: bin\test-muon-bf16\test-muon-bf16.chk.sft
+[Step Limit Reached] Reached target step 5. Pausing fine-tuning cleanly.
+============================================================
+               FINE-TUNING COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 15,548 (ideal: 200M-1B)
+  Final Losses       : Train 9.459 | Val 8.714 (Seq: 9.310, ideal: 2.25-2.55)
+  Val - Train Gap    : -0.745 (UNDERFITTING!)
+  Perplexity         : Resp 6086.07 | Seq 11052.14 (ideal: 9.5-12.8)
+  Model              : test-muon-bf16 (~51.2M params)
+============================================================
+[Plot] Saved fine-tuning loss curves to 'bin\test-muon-bf16\test-muon-bf16-loss-plot-tune.pdf'.
+[Options] Overrode 11 parameter(s) from 'test-muon-bf16.options-tune.json': batch_size=4, accum_steps=2, num_epochs=2, use_muon=True, muon_lr=0.02, learning_rate=0.0003, max_length=512, step_limit=5, eval_freq=2, single_gpu=True, precompute_total_steps=True
+[Memory] cuda:0: allocator cache capped at 15.10 GiB of 15.89 GiB (* GiB already in use as seen by CUDA).
+=================================================================
+      FULLY-OPTIMIZED GPT INSTRUCTION FINE-TUNING (SFT)
+=================================================================
+Device: cuda:0 | Active GPUs: 1 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.bfloat16)
+Model: test-muon-bf16 (8 layers, 512 emb, 8 heads)
+Batch Size: 4 (Accum Steps: 2) | Epochs: 2 | Peak LR: 0.000300
+Instruction Data: bin\test-muon-bf16\data\Tuning (1 file(s))
+  [1/1] combined_1.txt
+=================================================================
+[Low-VRAM Optimization] Muon momentum buffers stored in bf16 (halves the Muon optimizer state; weights and Newton-Schulz stay fp32).
+[Optimizer] Selected Hybrid CustomMuon (2D weights) + Fused AdamW (1D/Norms/Embeddings).
+[Resume] Successfully loaded active TUNE checkpoint at Global Step 5 (Epoch 1, File 1, Step 10, Tokens seen: 15,548).
+[Validation Buffer] Built fixed stratified SFT validation buffer: 8 batches across 1 file(s).
+[Streaming Loader] Initialized streaming instruction loader across 1 file(s): ~19 train steps, ~8 val steps | step plan: exact (steps cache).
+[Training Plan] Target epochs: 2 | Steps per epoch: 19 (Optimizer updates: 10) | Planned updates: 20 | Step plan: exact (steps cache)
+[Training Plan] Resumed from step 5. Training for 5 steps -> Target step: 10.
+[Gradient Accumulation] Accumulating gradients over 2 sub-steps before optimizer update.
+[Checkpointing] Model target: 'test-muon-bf16'
+[Initial State Evaluation]
+  Initial Train Loss : 8.3980
+  Initial Val Loss   : 8.7138 (Seq: 9.3104) (PPL: Resp 6086.07 | Seq 11052.14) (Eval took *)
+======================================================================
+Starting Fine-Tuning Epoch 1/2
+======================================================================
+[Resume] Fast-forwarding 10 step(s) in Epoch 1 -> Resuming from step 11/19...
+Ep 1/2 (Step 000012/000019 - 63% | Global 000006/000020 - 30%): Train 8.016, Val 8.524 (Seq 9.140) | PPL: 5035.94 (Seq 9323.04) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.015892
+[VRAM cuda:0] peak 1.780 GB = weights 0.191 + grads 0.191 + optim 0.241 + other 1.158 | now 0.494 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Ep 1/2 (Step 000016/000019 - 84% | Global 000008/000020 - 40%): Train 8.609, Val 8.090 (Seq 8.893) | PPL: 3262.24 (Seq 7279.10) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.013113
+[VRAM cuda:0] peak 1.781 GB = weights 0.191 + grads 0.191 + optim 0.241 + other 1.158 | now 0.494 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Ep 1/2 (Step 000019/000019 - 100% | Global 000010/000020 - 50%): Train 7.714, Val 7.814 (Seq 8.788) | PPL: 2473.87 (Seq 6556.33) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.010033
+[VRAM cuda:0] peak 1.594 GB = weights 0.191 + grads 0.191 + optim 0.241 + other 0.971 | now 0.494 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+[gptio] Saved TUNE checkpoint (Step 10) to: bin\test-muon-bf16\test-muon-bf16.chk.sft
+[Step Limit Reached] Reached target step 10. Pausing fine-tuning cleanly.
+============================================================
+               FINE-TUNING COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 29,548 (ideal: 200M-1B)
+  Final Losses       : Train 7.714 | Val 7.814 (Seq: 8.788, ideal: 2.25-2.55)
+  Val - Train Gap    : +0.100 (UNDERFITTING!)
+  Perplexity         : Resp 2473.87 | Seq 6556.33 (ideal: 9.5-12.8)
+  Model              : test-muon-bf16 (~51.2M params)
+============================================================
+[Plot] Saved fine-tuning loss curves to 'bin\test-muon-bf16\test-muon-bf16-loss-plot-tune.pdf'.
+[Options] Overrode 11 parameter(s) from 'test-muon-bf16.options-tune.json': batch_size=4, accum_steps=2, num_epochs=2, use_muon=True, muon_lr=0.02, learning_rate=0.0003, max_length=512, step_limit=5, eval_freq=2, single_gpu=True, precompute_total_steps=True
+[Memory] cuda:0: allocator cache capped at 15.10 GiB of 15.89 GiB (* GiB already in use as seen by CUDA).
+=================================================================
+      FULLY-OPTIMIZED GPT INSTRUCTION FINE-TUNING (SFT)
+=================================================================
+Device: cuda:0 | Active GPUs: 1 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.bfloat16)
+Model: test-muon-bf16 (8 layers, 512 emb, 8 heads)
+Batch Size: 4 (Accum Steps: 2) | Epochs: 2 | Peak LR: 0.000300
+Instruction Data: bin\test-muon-bf16\data\Tuning (1 file(s))
+  [1/1] combined_1.txt
+=================================================================
+[Optimizer] Selected Hybrid CustomMuon (2D weights) + Fused AdamW (1D/Norms/Embeddings).
+[Resume] Successfully loaded active TUNE checkpoint at Global Step 10 (Epoch 1, File 1, Step 19, Tokens seen: 29,548).
+[Validation Buffer] Built fixed stratified SFT validation buffer: 8 batches across 1 file(s).
+[Streaming Loader] Initialized streaming instruction loader across 1 file(s): ~19 train steps, ~8 val steps | step plan: exact (steps cache).
+[Training Plan] Target epochs: 2 | Steps per epoch: 19 (Optimizer updates: 10) | Planned updates: 20 | Step plan: exact (steps cache)
+[Training Plan] Resumed from step 10. Training for 5 steps -> Target step: 15.
+[Gradient Accumulation] Accumulating gradients over 2 sub-steps before optimizer update.
+[Checkpointing] Model target: 'test-muon-bf16'
+[Initial State Evaluation]
+  Initial Train Loss : 7.3966
+  Initial Val Loss   : 7.8135 (Seq: 8.7882) (PPL: Resp 2473.87 | Seq 6556.33) (Eval took *)
+======================================================================
+Starting Fine-Tuning Epoch 1/2
+======================================================================
+[Resume] Fast-forwarding 19 step(s) in Epoch 1 -> Resuming from step 20/19...
+----------------------------------------------------------------------
+[Sample Response @ Epoch 1]
+  Prompt/Inst : <|user|>
+Evaluate the following phrase by transforming it into the spelling give...
+  Response    : <text>
+----------------------------------------------------------------------
+[gptio] Saved TUNE checkpoint (Step 10) to: bin\test-muon-bf16\test-muon-bf16.chk.sft
+[VRAM cuda:0] peak 0.752 GB = weights 0.191 + grads 0.191 + optim 0.288 + other 0.082 | now 0.510 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+File processed: * | Total elapsed: * | ETA for remaining files: *
+======================================================================
+Starting Fine-Tuning Epoch 2/2
+======================================================================
+Ep 2/2 (Step 000004/000019 - 21% | Global 000012/000020 - 60%): Train 7.290, Val 7.724 (Seq 8.787) | PPL: 2262.43 (Seq 6546.00) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.006953
+[VRAM cuda:0] peak 1.826 GB = weights 0.191 + grads 0.191 + optim 0.288 + other 1.156 | now 0.541 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Ep 2/2 (Step 000008/000019 - 42% | Global 000014/000020 - 70%): Train 6.229, Val 7.658 (Seq 8.708) | PPL: 2117.75 (Seq 6050.94) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.004175
+[VRAM cuda:0] peak 1.827 GB = weights 0.191 + grads 0.191 + optim 0.288 + other 1.158 | now 0.541 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Ep 2/2 (Step 000010/000019 - 53% | Global 000015/000020 - 75%): Train 7.517, Val 7.633 (Seq 8.726) | PPL: 2064.57 (Seq 6159.95) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.002986
+[VRAM cuda:0] peak 1.800 GB = weights 0.191 + grads 0.191 + optim 0.288 + other 1.130 | now 0.541 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+[gptio] Saved TUNE checkpoint (Step 15) to: bin\test-muon-bf16\test-muon-bf16.chk.sft
+[Step Limit Reached] Reached target step 15. Pausing fine-tuning cleanly.
+============================================================
+               FINE-TUNING COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 44,780 (ideal: 200M-1B)
+  Final Losses       : Train 7.517 | Val 7.633 (Seq: 8.726, ideal: 2.25-2.55)
+  Val - Train Gap    : +0.115 (UNDERFITTING!)
+  Perplexity         : Resp 2064.57 | Seq 6159.95 (ideal: 9.5-12.8)
+  Model              : test-muon-bf16 (~51.2M params)
+============================================================
+[Plot] Saved fine-tuning loss curves to 'bin\test-muon-bf16\test-muon-bf16-loss-plot-tune.pdf'.
+[Options] Overrode 12 parameter(s) from 'test-muon-bf16.options-optimize.json': batch_size=2, accum_steps=2, num_epochs=1, use_muon=True, muon_lr=0.002, learning_rate=5e-06, beta=0.1, max_length=512, step_limit=5, single_gpu=True, use_bf16_for_muon_momentum=True, precompute_total_steps=True
+[Memory] cuda:0: allocator cache capped at 15.10 GiB of 15.89 GiB (* GiB already in use as seen by CUDA).
+=================================================================
+      GPT DIRECT PREFERENCE OPTIMIZATION (DPO)
+=================================================================
+Policy Device: cuda:0 | Ref Device: cuda:0 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.bfloat16)
+Model: test-muon-bf16 (8 layers, 512 emb, 8 heads)
+Batch Size: 2 (Accum Steps: 2) | Epochs: 1 | LR: 0.0000050 | Beta: 0.1
+Preference Data: bin\test-muon-bf16\data\Optimizing (1 file(s))
+  [1/1] preference_combined_1.json
+Base Model: test-muon-bf16
+=================================================================
+[Reference Model] Initialized frozen reference model from SFT checkpoint (.chk.sft) on cuda:0.
+[Low-VRAM Optimization] Muon momentum buffers stored in bf16 (halves the Muon optimizer state; weights and Newton-Schulz stay fp32).
+[Optimizer] Selected Hybrid CustomMuon (2D weights) + Fused AdamW (1D/Norms/Embeddings).
+[Resume] Loaded base SFT weights for OPTIMIZE. Starting OPTIMIZE from Step 0.
+[Training Plan] This pass streamed 92 batches where the plan said 85 (+8.2%); the steps cache now holds the exact count and every later plan uses it (a resumed run re-anchors its LR cosine on the new horizon instead of jumping).
+[Steps Precompute] DPO: streamed the first epoch's 92 batches on the CPU in * to record the exact step counts of 1 file(s) (steps_cache.json).
+[Validation Buffer] Built fixed stratified DPO validation buffer: 16 batches across 1 file(s).
+[Streaming Loader] Initialized streaming preference loader across 1 file(s): ~92 train steps, ~16 val steps | step plan: exact (steps cache).
+[DPO Plan] Target epochs: 1 | Steps per epoch: 92 (Updates: 46) | Total updates: 46 | Step plan: exact (steps cache)
+[DPO Plan] Resumed from step 0. Training for 5 steps -> Target step: 5.
+[Gradient Accumulation] Accumulating gradients over 2 sub-steps before optimizer update.
+[Checkpointing] Model target: 'test-muon-bf16'
+[Initial State Evaluation]
+  Initial Train Loss : 4.2622 | Margin: +0.0000 | Chosen vs ref: +0.0000 | Acc: *
+  Initial Val Loss   : 5.2079 | Margin: +0.0000 | Chosen vs ref: +0.0000 | Acc: * (Eval took *)
+======================================================================
+Starting DPO Optimization Epoch 1/1
+======================================================================
+Ep 1/1 (Step 000010/000092 - 11% | Global 000005/000046 - 11%): Train 3.912, Val 5.130 | Margin: Tr +0.197, Val +0.024 | Acc: * | Chosen vs ref: Tr +0.681, Val +0.153 | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.0019690
+[VRAM cuda:0] peak 1.395 GB = weights 0.191 + grads 0.191 + optim 0.241 + other 0.772 | now 0.685 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+[gptio] Saved OPTIMIZE checkpoint (Step 5) to: bin\test-muon-bf16\test-muon-bf16.chk.dpo
+[Step Limit Reached] Reached target step 5. Pausing DPO optimization cleanly.
+----------------------------------------------------------------------
+[Sample Model Response @ Epoch 1]
+  Instruction : <|im_start|>user
+Evaluate the following phrase by transforming it into the spelling given.
+freind -
+  Preferred   : The spelling of the given phrase "freind" is incorrect, the correct spelling is "friend".
+  Model Output: <text>
+----------------------------------------------------------------------
+[VRAM cuda:0] peak 0.776 GB = weights 0.191 + grads 0.191 + optim 0.241 + other 0.154 | now 0.685 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+File processed: * | Total elapsed: * | ETA for remaining files: *
+============================================================
+               DPO OPTIMIZATION COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 8,556 (ideal: 25.6M-256.1M)
+  Final Losses       : Train 3.912 | Val 5.130
+  Val - Train Gap    : +1.219 (OVERFITTING!)
+  Final Margins      : Train +0.197 | Val +0.024
+  Model              : test-muon-bf16 (~51.2M params)
+============================================================
+[Plot] Saved DPO telemetry curves to 'bin\test-muon-bf16\test-muon-bf16-loss-plot-optimize.pdf'.
+[Options] Overrode 12 parameter(s) from 'test-muon-bf16.options-train.json': batch_size=4, accum_steps=2, num_epochs=1, use_muon=True, muon_lr=0.02, learning_rate=0.0003, weight_decay=0.01, resume=False, step_limit=5, eval_freq=2, single_gpu=True, precompute_total_steps=False
+[Options] Overrode 5 parameter(s) from 'test-muon-bf16.options-infer.json': temperature=0.7, top_k=50, top_p=0.9, single_gpu=True, gpu_index=0
+[SpellCheck] Autocorrect initialized (SymSpell dictionary-based cleanup active).
+============================================================
+           Interactive GPT Conversation Console
+============================================================
+Model Target    : test-muon-bf16
+Precision       : FP16 (dtype: torch.bfloat16)
+Device          : cuda:0 (Available GPUs: 0)
+Temperature     : 0.7 | Top-K: 50 | Top-P: 0.9
+System Prompt   : You are a helpful and coherent AI assistant.
+============================================================
+[modelio] Successfully loaded model weights from: bin\test-muon-bf16\test-muon-bf16.pth
+⚡ [Performance] Response: * tok/s | Session Avg: * tok/s | Tokens: * in *

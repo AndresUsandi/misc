@@ -8,5 +8,6 @@
     "step_limit": 5,
     "single_gpu": true,
     "pol_device": "cuda:0",
-    "ref_device": "0"
+    "ref_device": "0",
+    "precompute_total_steps": true
 }

@@ -174,8 +174,9 @@ def run_generation(
     conversation_messages: List[Dict[str, str]],
     user_input: str,
     stream: bool = True,
+    seed: Optional[int] = None,
 ) -> Tuple[str, Dict[str, Any]]:
-    """Executes a single conversational generation turn and updates conversation_messages."""
+    """Executes a single conversational generation turn and updates conversation_messages. seed overrides args.seed for this turn."""
     model = ctx["model"]
     tokenizer = ctx["tokenizer"]
     spell_checker = ctx["spell_checker"]
@@ -205,17 +206,20 @@ def run_generation(
 
     encoded_tokens = tokenizer.encode(prompt_text)
 
-    budget_for_generation = min(args.max_new_tokens, context_window // 2)
-    max_prompt_len = max(1, context_window - budget_for_generation)
+    # The reply gets whatever the context window leaves after the prompt; a long conversation is trimmed to its most recent
+    # tokens so that at least half the window stays available for the reply. Generation also stops at an end-of-sequence token.
+    max_prompt_len = max(1, context_window - context_window // 2)
     if len(encoded_tokens) > max_prompt_len:
         encoded_tokens = encoded_tokens[-max_prompt_len:]
 
     input_tensor = torch.tensor(encoded_tokens, device=first_device).unsqueeze(0)
     prompt_len = input_tensor.shape[1]
-    allowed_new_tokens = max(1, min(args.max_new_tokens, context_window - prompt_len))
+    allowed_new_tokens = max(1, context_window - prompt_len)
 
     if torch.cuda.is_available():
         torch.cuda.synchronize()
+    if (seed if seed is not None else args.seed) is not None:
+        torch.manual_seed(seed if seed is not None else args.seed)
     t0 = time.time()
 
     if stream:
@@ -256,6 +260,7 @@ def run_generation(
         temp_min=args.temp_min,
         temp_max=args.temp_max,
         repetition_penalty=args.repetition_penalty,
+        no_repeat_ngram=args.no_repeat_ngram,
         eos_id=eos_id,
         stream_callback=token_callback if stream else None,
         stop_strings=stop_strings,
@@ -280,6 +285,7 @@ def run_generation(
             assistant_response = assistant_response.split(stop_seq)[0].strip()
 
     stats = compute_generation_stats(assistant_response, len(generated_token_ids), elapsed_time)
+    stats["allowed_new_tokens"] = allowed_new_tokens  # the window left for the reply: a reply this long ran into the context limit
 
     clean_content = assistant_response
     if "<think>" in clean_content and "</think>" in clean_content:

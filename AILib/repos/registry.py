@@ -60,6 +60,7 @@ MODEL_REGISTRY: Dict[str, Dict[str, Any]] = {
             "ffn_type": "gelu",
             "drop_rate": 0.0,
             "qkv_bias": True,
+            "out_proj_bias": True,
         }
     },
     "gpt2:1d5b": {

@@ -16,18 +16,18 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from argsutil import TrainingArgs
-from gptmodel.Dataset import format_input
-from gpttrain.train.evaluation import text_to_token_ids, token_ids_to_text
+from gptmodel.Dataset import format_input, plan_provenance
+from gpttrain.train.evaluation import calc_loss_batch, text_to_token_ids, token_ids_to_text
 from gptio.checkpoint import save_checkpoint
 from gptio.modelio import save_model
 from gptio.pathutil import STAGE_OPTIMIZE
 from gptio.precision import create_grad_scaler
-from gpttrain.optimizer import set_optimizer_lr
+from gpttrain.optimizer import lr_schedule_from_resume, set_optimizer_lr
 from gpttrain.optimize.scheduler import get_cosine_lr_with_warmup
 from gpttrain.optimize.dpo_loss import compute_dpo_loss_batch, evaluate_dpo_loader
 from gptutils.consoleutils import (
     print,
-    format_vram_str,
+    format_vram_report,
     print_gpu_memory_breakdown,
     print_step_telemetry,
     print_eta,
@@ -60,10 +60,14 @@ def train_model_dpo_fully_optimized(
     amp_dtype: Optional[torch.dtype] = torch.bfloat16,
     use_amp: Optional[bool] = None,
     accumulated_training_time: float = 0.0,
+    replay_loader: Optional[DataLoader] = None,
+    replay_weight: float = 1.0,
 ) -> Tuple[List[float], List[float], List[float], List[float], List[int], List[float], float]:
     """
     Executes DPO preference tuning with multi-GPU/AMP acceleration, gradient accumulation,
     reward margin tracking, real-time throughput telemetry, and robust checkpointing.
+    replay_loader (--dpo_replay_datasets): an instruction loader whose batches are scored with the ordinary SFT loss, times replay_weight,
+    in every micro-step next to the preference loss, so the skills in that data keep being trained while the pairs pull elsewhere.
     """
     raw_policy = getattr(policy_model, "raw_model", getattr(policy_model, "module", policy_model))
     raw_policy = getattr(raw_policy, "_orig_mod", raw_policy)
@@ -90,7 +94,8 @@ def train_model_dpo_fully_optimized(
     global_total_steps = effective_steps_in_epoch * args.num_epochs
     warmup_steps = int(global_total_steps * args.warmup_ratio)
 
-    print(f"\n[DPO Plan] Target epochs: {args.num_epochs} | Steps per epoch: {total_steps_in_epoch:,} (Updates: {effective_steps_in_epoch:,}) | Total updates: {global_total_steps:,}")
+    print(f"\n[DPO Plan] Target epochs: {args.num_epochs} | Steps per epoch: {total_steps_in_epoch:,} (Updates: {effective_steps_in_epoch:,}) | Total updates: {global_total_steps:,} | Step plan: {plan_provenance(train_loader.dataset)}")
+    lr_at = lr_schedule_from_resume(optimizer, start_step, lambda s: get_cosine_lr_with_warmup(s, warmup_steps, global_total_steps, args.learning_rate, args.min_lr), global_total_steps, warmup_steps, args.min_lr)
     if target_step is not None:
         print(f"[DPO Plan] Resumed from step {start_step}. Training for {args.step_limit} steps -> Target step: {target_step}.")
     if args.accum_steps > 1:
@@ -102,16 +107,16 @@ def train_model_dpo_fully_optimized(
     use_cuda = (device.type == "cuda")
     if use_amp is None:
         use_amp = (use_cuda and amp_dtype is not None and amp_dtype != torch.float32)
-    scaler = create_grad_scaler(policy_model, device, use_amp=use_amp, amp_dtype=amp_dtype, fine_tuning=True)
+    scaler = create_grad_scaler(policy_model, device, use_amp=use_amp, amp_dtype=amp_dtype)
 
     # Initial evaluation
     print("\n[Initial State Evaluation]")
     t_init_eval_start = time.time()
-    init_tr = evaluate_dpo_loader(train_loader, policy_model, reference_model, args.beta, device, ref_device, args.eval_iter, amp_dtype=amp_dtype, use_amp=use_amp)
-    init_val = evaluate_dpo_loader(val_loader, policy_model, reference_model, args.beta, device, ref_device, args.eval_iter, amp_dtype=amp_dtype, use_amp=use_amp)
+    init_tr = evaluate_dpo_loader(train_loader, policy_model, reference_model, args.beta, device, ref_device, args.eval_iter, amp_dtype=amp_dtype, use_amp=use_amp, sft_weight=args.dpo_sft_weight)
+    init_val = evaluate_dpo_loader(val_loader, policy_model, reference_model, args.beta, device, ref_device, args.eval_iter, amp_dtype=amp_dtype, use_amp=use_amp, sft_weight=args.dpo_sft_weight)
     init_eval_time = time.time() - t_init_eval_start
-    print(f"  Initial Train Loss : {init_tr['loss']:.4f} | Margin: {init_tr['margin']:+.4f} | Acc: {init_tr['accuracy'] * 100:.1f}%")
-    print(f"  Initial Val Loss   : {init_val['loss']:.4f} | Margin: {init_val['margin']:+.4f} | Acc: {init_val['accuracy'] * 100:.1f}% (Eval took {init_eval_time:.2f}s)")
+    print(f"  Initial Train Loss : {init_tr['loss']:.4f} | Margin: {init_tr['margin']:+.4f} | Chosen vs ref: {init_tr['chosen_reward']:+.4f} | Acc: {init_tr['accuracy'] * 100:.1f}%")
+    print(f"  Initial Val Loss   : {init_val['loss']:.4f} | Margin: {init_val['margin']:+.4f} | Chosen vs ref: {init_val['chosen_reward']:+.4f} | Acc: {init_val['accuracy'] * 100:.1f}% (Eval took {init_eval_time:.2f}s)")
 
     start_time = time.time()
     def get_current_accum_time() -> float:
@@ -121,6 +126,19 @@ def train_model_dpo_fully_optimized(
     interval_tokens = 0
     cumulative_train_time = 0.0
     stopped_due_to_limit = False
+    replay_iter, replay_epoch, replay_loss_sum, replay_loss_n = None, 0, 0.0, 0
+
+    def next_replay_batch():
+        """The next replayed SFT batch; the stream restarts (with a fresh shuffle) whenever it runs out, so it never gates the DPO run."""
+        nonlocal replay_iter, replay_epoch
+        for _ in range(2):
+            if replay_iter is None:
+                replay_loader.dataset.seek(replay_epoch); replay_iter = iter(replay_loader)
+            try:
+                return next(replay_iter)
+            except StopIteration:
+                replay_iter, replay_epoch = None, replay_epoch + 1
+        raise RuntimeError("--dpo_replay_datasets: the replay stream yielded no batch")
 
     step_in_epoch = resumed_step_in_epoch
     epoch = start_epoch
@@ -153,22 +171,28 @@ def train_model_dpo_fully_optimized(
                     policy_model=policy_model,
                     reference_model=reference_model,
                     beta=args.beta,
+                    sft_weight=args.dpo_sft_weight,
                     policy_device=device,
                     ref_device=ref_device,
                     amp_dtype=amp_dtype,
                     activation_checkpointing=args.activation_checkpointing,
                     use_amp=use_amp,
+                    chunk_size=args.chunk_size,
+                    backward_accum_steps=args.accum_steps,
+                    scaler=scaler,
                 )
 
-                if args.accum_steps > 1:
-                    loss = loss / args.accum_steps
-
-                if scaler:
-                    scaler.scale(loss).backward()
-                else:
-                    loss.backward()
-
                 del loss
+
+                if replay_loader is not None:  # the replayed SFT loss goes into the same accumulated gradients as the preference loss
+                    r_in, r_tgt = next_replay_batch()
+                    r_loss, r_done = calc_loss_batch(r_in, r_tgt, policy_model, device, amp_dtype=amp_dtype, chunk_size=args.chunk_size, accum_steps=args.accum_steps / replay_weight,
+                                                     return_backward_status=True, activation_checkpointing=args.activation_checkpointing, use_amp=use_amp, scaler=scaler)
+                    if not r_done:  # single-device path: the loss comes back unscaled and without its backward
+                        scaled = r_loss * replay_weight / args.accum_steps
+                        (scaler.scale(scaled) if scaler else scaled).backward()
+                    replay_loss_sum += float(r_loss.detach()); replay_loss_n += 1
+                    del r_loss
 
                 batch_tokens = int((batch["chosen"] != tokenizer.pad_id).sum().item() + (batch["rejected"] != tokenizer.pad_id).sum().item())
                 tokens_seen += batch_tokens
@@ -179,34 +203,42 @@ def train_model_dpo_fully_optimized(
                 if is_accum_step:
                     global_step += 1
 
-                    current_lr = get_cosine_lr_with_warmup(global_step, warmup_steps, global_total_steps, args.learning_rate, args.min_lr)
+                    if hasattr(policy_model, "reduce_gradients"):  # data parallelism: average the copies' accumulated gradients onto the masters
+                        policy_model.reduce_gradients()
+
+                    current_lr = lr_at(global_step)
                     set_optimizer_lr(optimizer, current_lr)
 
                     if scaler:
                         if isinstance(optimizer, list):
                             for opt in optimizer:
                                 scaler.unscale_(opt)
-                            torch.nn.utils.clip_grad_norm_(raw_policy.parameters(), max_norm=1.0)
+                            torch.nn.utils.clip_grad_norm_(policy_model.parameters(), max_norm=1.0)  # the wrapper's parameters: under ZeRO-1 the averaged gradients live on the shard masters
                             for opt in optimizer:
                                 scaler.step(opt)
                         else:
                             scaler.unscale_(optimizer)
-                            torch.nn.utils.clip_grad_norm_(raw_policy.parameters(), max_norm=1.0)
+                            torch.nn.utils.clip_grad_norm_(policy_model.parameters(), max_norm=1.0)
                             scaler.step(optimizer)
                         scaler.update()
                     else:
-                        torch.nn.utils.clip_grad_norm_(raw_policy.parameters(), max_norm=1.0)
+                        torch.nn.utils.clip_grad_norm_(policy_model.parameters(), max_norm=1.0)
                         if isinstance(optimizer, list):
                             for opt in optimizer:
                                 opt.step()
                         else:
                             optimizer.step()
 
+                    if hasattr(policy_model, "sync_weights"):
+                        policy_model.sync_weights()
+
                     if isinstance(optimizer, list):
                         for opt in optimizer:
                             opt.zero_grad()
                     else:
                         optimizer.zero_grad()
+                    if hasattr(policy_model, "raw_replicas"):
+                        policy_model.zero_grad(set_to_none=True)
 
                 t_step_end = time.time()
                 step_duration = t_step_end - t_step_start
@@ -222,11 +254,11 @@ def train_model_dpo_fully_optimized(
 
                     lr_val = optimizer[0].param_groups[0]["lr"] if isinstance(optimizer, list) else optimizer.param_groups[0]["lr"]
 
-                    vram_str = format_vram_str(device)
+                    vram_str = format_vram_report(policy_model, optimizer, device)
 
                     t_eval_start = time.time()
-                    eval_tr = evaluate_dpo_loader(train_loader, policy_model, reference_model, args.beta, device, ref_device, args.eval_iter, amp_dtype=amp_dtype, use_amp=use_amp)
-                    eval_val = evaluate_dpo_loader(val_loader, policy_model, reference_model, args.beta, device, ref_device, args.eval_iter, amp_dtype=amp_dtype, use_amp=use_amp)
+                    eval_tr = evaluate_dpo_loader(train_loader, policy_model, reference_model, args.beta, device, ref_device, args.eval_iter, amp_dtype=amp_dtype, use_amp=use_amp, sft_weight=args.dpo_sft_weight)
+                    eval_val = evaluate_dpo_loader(val_loader, policy_model, reference_model, args.beta, device, ref_device, args.eval_iter, amp_dtype=amp_dtype, use_amp=use_amp, sft_weight=args.dpo_sft_weight)
                     eval_duration = time.time() - t_eval_start
 
                     train_losses.append(eval_tr["loss"])
@@ -253,10 +285,15 @@ def train_model_dpo_fully_optimized(
                         vram_str=vram_str,
                         train_margin=eval_tr["margin"],
                         val_margin=eval_val["margin"],
+                        train_chosen=eval_tr["chosen_reward"],
+                        val_chosen=eval_val["chosen_reward"],
                         train_acc=eval_tr["accuracy"],
                         val_acc=eval_val["accuracy"],
                         lr_precision=7,
                     )
+                    if replay_loader is not None and replay_loss_n:
+                        print(f"  [Replay] SFT loss on the replayed fine-tuning data over the interval: {replay_loss_sum / replay_loss_n:.4f} ({replay_loss_n} micro-steps, weight {replay_weight})")
+                        replay_loss_sum, replay_loss_n = 0.0, 0
 
                     if args.verbose:
                         raw_m = getattr(policy_model, "raw_model", getattr(policy_model, "module", policy_model))
@@ -277,8 +314,8 @@ def train_model_dpo_fully_optimized(
                                     model=policy_model, idx=encoded, max_new_tokens=64,
                                     context_size=context_size, eos_id=tokenizer.eos_id, temperature=0.0
                                 )
-                            gen_str = token_ids_to_text(gen_ids, tokenizer)
-                            ans = gen_str[len(sample_prompt):].replace("### Response:", "").strip()
+                            gen_str = token_ids_to_text(gen_ids[:, encoded.shape[1]:], tokenizer)  # the new tokens only: slicing the decoded text by len(sample_prompt) breaks when the decode differs from the prompt text
+                            ans = gen_str.replace("### Response:", "").strip()
                             print(f"  [Sample Response]: {ans.replace(chr(10), ' ')[:130]}")
                         policy_model.train()
 
@@ -342,8 +379,8 @@ def train_model_dpo_fully_optimized(
                         model=policy_model, idx=encoded, max_new_tokens=100,
                         context_size=context_size, eos_id=tokenizer.eos_id, temperature=0.0
                     )
-                gen_str = token_ids_to_text(gen_ids, tokenizer)
-                ans = gen_str[len(sample_prompt):].replace("### Response:", "").strip()
+                gen_str = token_ids_to_text(gen_ids[:, encoded.shape[1]:], tokenizer)  # the new tokens only: slicing the decoded text by len(sample_prompt) breaks when the decode differs from the prompt text
+                ans = gen_str.replace("### Response:", "").strip()
                 clean_instr = sample_prompt.replace("Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction:\n", "").strip()
                 print("\n" + "-" * 70)
                 print(f"[Sample Model Response @ Epoch {epoch+1}]")
@@ -353,7 +390,7 @@ def train_model_dpo_fully_optimized(
                 print("-" * 70)
             policy_model.train()
 
-            print_gpu_memory_breakdown()
+            print_gpu_memory_breakdown(policy_model, optimizer)
             print_eta(start_time, epoch_start_time, (epoch - start_epoch + 1), (args.num_epochs - start_epoch))
 
             if stopped_due_to_limit:

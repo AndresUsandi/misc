@@ -16,7 +16,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from argsutil import TrainingArgs
-from gptmodel.Dataset import format_input
+from gptmodel.Dataset import format_input, plan_provenance
 from gpttrain.train.evaluation import (
     calc_loss_batch,
     evaluate_model,
@@ -26,11 +26,11 @@ from gpttrain.train.evaluation import (
 from gptio.checkpoint import save_checkpoint
 from gptio.modelio import save_model
 from gptio.precision import create_grad_scaler
-from gpttrain.optimizer import set_optimizer_lr
+from gpttrain.optimizer import lr_schedule_from_resume, set_optimizer_lr
 from gpttrain.tune.scheduler import get_cosine_lr_with_warmup
 from gptutils.consoleutils import (
     print,
-    format_vram_str,
+    format_vram_report,
     print_gpu_memory_breakdown,
     print_step_telemetry,
     print_eta,
@@ -88,7 +88,8 @@ def train_model_instruction_fully_optimized(
     global_total_steps = effective_steps_in_epoch * args.num_epochs
     warmup_steps = int(global_total_steps * args.warmup_ratio)
 
-    print(f"\n[Training Plan] Target epochs: {args.num_epochs} | Steps per epoch: {total_steps_in_epoch:,} (Optimizer updates: {effective_steps_in_epoch:,}) | Planned updates: {global_total_steps:,}")
+    print(f"\n[Training Plan] Target epochs: {args.num_epochs} | Steps per epoch: {total_steps_in_epoch:,} (Optimizer updates: {effective_steps_in_epoch:,}) | Planned updates: {global_total_steps:,} | Step plan: {plan_provenance(train_loader.dataset)}")
+    lr_at = lr_schedule_from_resume(optimizer, start_step, lambda s: get_cosine_lr_with_warmup(s, warmup_steps, global_total_steps, args.learning_rate, args.min_lr), global_total_steps, warmup_steps, args.min_lr)
     if target_step is not None:
         print(f"[Training Plan] Resumed from step {start_step}. Training for {args.step_limit} steps -> Target step: {target_step}.")
     if args.accum_steps > 1:
@@ -100,7 +101,7 @@ def train_model_instruction_fully_optimized(
     use_cuda = (device.type == "cuda")
     if use_amp is None:
         use_amp = (use_cuda and amp_dtype is not None and amp_dtype != torch.float32)
-    scaler = create_grad_scaler(model, device, use_amp=use_amp, amp_dtype=amp_dtype, fine_tuning=True)
+    scaler = create_grad_scaler(model, device, use_amp=use_amp, amp_dtype=amp_dtype)
 
     # Initial evaluation
     print("\n[Initial State Evaluation]")
@@ -164,7 +165,7 @@ def train_model_instruction_fully_optimized(
                     amp_dtype=amp_dtype, chunk_size=args.chunk_size,
                     accum_steps=args.accum_steps, return_backward_status=True,
                     activation_checkpointing=args.activation_checkpointing,
-                    use_amp=use_amp, scaler=scaler
+                    use_amp=use_amp, scaler=scaler, autocast_weight_cache=args.use_autocast_weight_cache
                 )
                 assert isinstance(loss, torch.Tensor)
                 interval_loss_sum = interval_loss_sum + loss.detach().float()
@@ -191,23 +192,23 @@ def train_model_instruction_fully_optimized(
                     if hasattr(model, "reduce_gradients"):
                         model.reduce_gradients()
 
-                    current_lr = get_cosine_lr_with_warmup(global_step, warmup_steps, global_total_steps, args.learning_rate, args.min_lr)
+                    current_lr = lr_at(global_step)
                     set_optimizer_lr(optimizer, current_lr)
 
                     if scaler:
                         if isinstance(optimizer, list):
                             for opt in optimizer:
                                 scaler.unscale_(opt)
-                            torch.nn.utils.clip_grad_norm_(raw_model.parameters(), max_norm=1.0)
+                            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)  # the wrapper's parameters: under ZeRO-1 the averaged gradients live on the shard masters, not all on raw_model
                             for opt in optimizer:
                                 scaler.step(opt)
                         else:
                             scaler.unscale_(optimizer)
-                            torch.nn.utils.clip_grad_norm_(raw_model.parameters(), max_norm=1.0)
+                            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)  # the wrapper's parameters: under ZeRO-1 the averaged gradients live on the shard masters, not all on raw_model
                             scaler.step(optimizer)
                         scaler.update()
                     else:
-                        torch.nn.utils.clip_grad_norm_(raw_model.parameters(), max_norm=1.0)
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)  # the wrapper's parameters: under ZeRO-1 the averaged gradients live on the shard masters, not all on raw_model
                         if isinstance(optimizer, list):
                             for opt in optimizer:
                                 opt.step()
@@ -238,7 +239,7 @@ def train_model_instruction_fully_optimized(
                     interval_tokens = 0
                     interval_train_time = 0.0
 
-                    vram_str = format_vram_str(device)
+                    vram_str = format_vram_report(model, optimizer, device)
                     lr_val = optimizer[0].param_groups[0]["lr"] if isinstance(optimizer, list) else optimizer.param_groups[0]["lr"]
 
                     t_eval_start = time.time()
@@ -297,8 +298,8 @@ def train_model_instruction_fully_optimized(
                                     model=model, idx=encoded, max_new_tokens=64,
                                     context_size=context_size, eos_id=tokenizer.eos_id, temperature=0.0
                                 )
-                            gen_str = token_ids_to_text(gen_ids, tokenizer)
-                            resp_sample = gen_str[len(sample_prompt):].replace("### Response:", "").strip()
+                            gen_str = token_ids_to_text(gen_ids[:, encoded.shape[1]:], tokenizer)  # the new tokens only: slicing the decoded text by len(sample_prompt) breaks when the decode differs from the prompt text
+                            resp_sample = gen_str.replace("### Response:", "").strip()
                             safe_sample = resp_sample.replace("\n", " ").strip()
                             if len(safe_sample) > 100:
                                 safe_sample = safe_sample[:100] + "..."
@@ -324,28 +325,7 @@ def train_model_instruction_fully_optimized(
                             accumulated_training_time=get_current_accum_time()
                         )
 
-                    if target_step is not None and global_step >= target_step:
-                        if step_in_epoch % args.accum_steps != 0:
-                            if scaler:
-                                if isinstance(optimizer, list):
-                                    for opt in optimizer:
-                                        scaler.unscale_(opt)
-                                    torch.nn.utils.clip_grad_norm_(raw_model.parameters(), max_norm=1.0)
-                                    for opt in optimizer:
-                                        scaler.step(opt)
-                                else:
-                                    scaler.unscale_(optimizer)
-                                    torch.nn.utils.clip_grad_norm_(raw_model.parameters(), max_norm=1.0)
-                                    scaler.step(optimizer)
-                                scaler.update()
-                            else:
-                                torch.nn.utils.clip_grad_norm_(raw_model.parameters(), max_norm=1.0)
-                                if isinstance(optimizer, list):
-                                    for opt in optimizer:
-                                        opt.step()
-                                else:
-                                    optimizer.step()
-
+                    if target_step is not None and global_step >= target_step:  # inside is_accum_step: this step's update (incl. an epoch-end partial accumulation) is already applied, nothing to flush
                         if args.model_name:
                             save_checkpoint(
                                 model=raw_model,
@@ -392,8 +372,8 @@ def train_model_instruction_fully_optimized(
                         context_size=context_size, eos_id=tokenizer.eos_id, temperature=0.0,
                         stop_strings=tune_stops, tokenizer=tokenizer
                     )
-                gen_str = token_ids_to_text(gen_ids, tokenizer)
-                resp_sample = gen_str[len(sample_prompt):]
+                gen_str = token_ids_to_text(gen_ids[:, encoded.shape[1]:], tokenizer)  # the new tokens only: slicing the decoded text by len(sample_prompt) breaks when the decode differs from the prompt text
+                resp_sample = gen_str
                 for stop_tag in tune_stops + ["### Response:"]:
                     resp_sample = resp_sample.replace(stop_tag, "")
                 resp_sample = resp_sample.strip()
@@ -424,7 +404,7 @@ def train_model_instruction_fully_optimized(
                     accumulated_training_time=get_current_accum_time()
                 )
 
-            print_gpu_memory_breakdown()
+            print_gpu_memory_breakdown(model, optimizer)
             print_eta(start_time, epoch_start_time, (epoch - start_epoch + 1), (args.num_epochs - start_epoch))
 
             if stopped_due_to_limit:

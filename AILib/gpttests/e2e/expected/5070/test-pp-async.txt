@@ -1,0 +1,159 @@
+[Options] Overrode 15 parameter(s) from 'test-pp-async.options-train.json': batch_size=4, accum_steps=2, num_epochs=1, learning_rate=0.0005, resume=False, step_limit=5, eval_freq=2, multi_gpu_strategy=parallel-pipeline, multi_stage_micro_batching=0, even_layers=False, use_1f1b=False, async_pcie=True, gpu_index=1, single_gpu=False, precompute_total_steps=False
+=================================================================
+      FULLY-OPTIMIZED GPT TRAINING
+=================================================================
+Model: test-pp-async
+Device: cuda:1 | Active GPUs: 2 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.bfloat16)
+Model: test-pp-async (8 layers, 512 emb, 8 heads)
+Batch Size: 4 (Effective: 8) | Accum Steps: 2
+Epochs: 1 | AdamW LR: 0.0005 | Muon LR: 0.001 | Warmup Steps: 100
+Vocab: 50,304 | Context: 512 | Layers: 8 | Dim: 512 | Heads: 8
+Training Data Path: bin\test-pp-async\data\Training
+Total training files found: 1
+  [1/1] bin\test-pp-async\data\Training\TheVeredict\the-verdict.txt
+=================================================================
+Multi-GPU Mode: Wrapping model in MultiGpuGptModelPP across 2 GPUs (Layers: uneven (60% GPU 0 / 40% GPU 1, default), async_pcie=True, micro_batching=disabled, 1f1b=False, primary=cuda:1)!
+torch.compile skipped (default: disabled, use --compile to enable)
+Optimizer Configured: 1 ([Single Fused AdamW for all layers, default])
+[Notice] Resume disabled. Starting TRAIN from initialized weights.
+[Training Plan] Resumed from step 0. Training for 5 steps -> Target step: 5.
+[Checkpointing] Periodic saves enabled every 1000 steps -> 'test-pp-async'.
+[Data] 1 file(s): 5,148 tokens -> 9 train windows x 512 (2 steps/epoch of 4, 2 total global steps), 1 val windows | fixed eval buffers: 1 val + 1 train batch(es) sampled across all files.
+==================================================
+Starting Epoch 1/1
+==================================================
+Ep 1/1 (Step 000002/000002 - 100% | Global 000002/000002 - 100%): Train 10.627, Val 10.676 | PPL: 43296.54 | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000015
+[VRAM cuda:0] peak 1.222 GB = weights 0.131 + grads 0.131 + optim 0.070 + other 0.889 | now 0.299 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 0.685 GB = weights 0.156 + grads 0.156 + optim 0.311 + other 0.063 | now 0.685 | reserved * (unused *) | process * | device * used | alloc retries *
+Sample: <text>
+Val by dataset: TheVeredict 10.676
+[VRAM cuda:0] peak 0.543 GB = weights 0.131 + grads 0.131 + optim 0.070 + other 0.210 | now 0.299 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 0.720 GB = weights 0.156 + grads 0.156 + optim 0.311 + other 0.098 | now 0.685 | reserved * (unused *) | process * | device * used | alloc retries *
+Progress: 2/2 steps | Session elapsed: * (*) | ETA for remaining steps: * (*)
+[gptio] Saved TRAIN checkpoint (Step 2) to: bin\test-pp-async\test-pp-async.chk.trn
+[gptio] Saved TRAIN checkpoint (Step 2) to: bin\test-pp-async\test-pp-async.chk.trn
+[modelio] Successfully saved clean final model to: bin\test-pp-async\test-pp-async.pth
+============================================================
+               TRAINING COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 4,096 (ideal: 1B-6.7B)
+  Final Losses       : Train 10.627 (ideal: 3.90-4.05) | Val 10.676 (ideal: 3.95-4.10)
+  Val - Train Gap    : +0.049 (UNDERFITTING!)
+  Perplexity         : 43296.54 (ideal: 51.7-60.1)
+  Model              : test-pp-async (~51.2M params)
+============================================================
+[Plot] Saved pretraining loss curves to 'bin\test-pp-async\test-pp-async-loss-plot-train.pdf'.
+[Options] Overrode 11 parameter(s) from 'test-pp-async.options-tune.json': batch_size=4, accum_steps=2, num_epochs=1, learning_rate=0.0005, max_length=512, step_limit=5, multi_gpu_strategy=parallel-pipeline, even_layers=True, gpu_index=1, single_gpu=False, precompute_total_steps=True
+[Memory] cuda:0: allocator cache capped at 15.10 GiB of 15.89 GiB (* GiB already in use as seen by CUDA).
+[Memory] cuda:1: allocator cache capped at 15.10 GiB of 15.89 GiB (* GiB already in use as seen by CUDA).
+=================================================================
+      FULLY-OPTIMIZED GPT INSTRUCTION FINE-TUNING (SFT)
+=================================================================
+Device: cuda:1 | Active GPUs: 2 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.bfloat16)
+Model: test-pp-async (8 layers, 512 emb, 8 heads)
+Batch Size: 4 (Accum Steps: 2) | Epochs: 1 | Peak LR: 0.000500
+Instruction Data: bin\test-pp-async\data\Tuning (1 file(s))
+  [1/1] combined_1.txt
+=================================================================
+Multi-GPU Mode: Wrapping model in MultiGpuGptModelPP across 2 GPUs (Layers: even (50% GPU 0 / 50% GPU 1), primary=cuda:1)!
+[Resume] Loaded base pre-trained weights for TUNE. Starting TUNE from Step 0.
+[Training Plan] This pass streamed 19 batches where the plan said 15 (+26.7%); the steps cache now holds the exact count and every later plan uses it (a resumed run re-anchors its LR cosine on the new horizon instead of jumping).
+[Steps Precompute] SFT: streamed the first epoch's 19 batches on the CPU in * to record the exact step counts of 1 file(s) (steps_cache.json).
+[Validation Buffer] Built fixed stratified SFT validation buffer: 8 batches across 1 file(s).
+[Streaming Loader] Initialized streaming instruction loader across 1 file(s): ~19 train steps, ~8 val steps | step plan: exact (steps cache).
+[Training Plan] Target epochs: 1 | Steps per epoch: 19 (Optimizer updates: 10) | Planned updates: 10 | Step plan: exact (steps cache)
+[Training Plan] Resumed from step 0. Training for 5 steps -> Target step: 5.
+[Gradient Accumulation] Accumulating gradients over 2 sub-steps before optimizer update.
+[Checkpointing] Model target: 'test-pp-async'
+[Initial State Evaluation]
+  Initial Train Loss : 10.7553
+  Initial Val Loss   : 10.6902 (Seq: 10.7176) (PPL: Resp 43922.36 | Seq 45142.30) (Eval took *)
+======================================================================
+Starting Fine-Tuning Epoch 1/1
+======================================================================
+Ep 1/1 (Step 000010/000019 - 53% | Global 000005/000010 - 50%): Train 10.138, Val 8.918 (Seq 9.252) | PPL: 7465.51 (Seq 10428.08) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000251
+[VRAM cuda:0] peak 1.378 GB = weights 0.143 + grads 0.143 + optim 0.094 + other 0.998 | now 0.299 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 0.829 GB = weights 0.144 + grads 0.144 + optim 0.288 + other 0.254 | now 0.494 | reserved * (unused *) | process * | device * used | alloc retries *
+[gptio] Saved TUNE checkpoint (Step 5) to: bin\test-pp-async\test-pp-async.chk.sft
+[Step Limit Reached] Reached target step 5. Pausing fine-tuning cleanly.
+============================================================
+               FINE-TUNING COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 15,548 (ideal: 200M-1B)
+  Final Losses       : Train 10.138 | Val 8.918 (Seq: 9.252, ideal: 2.25-2.55)
+  Val - Train Gap    : -1.220 (UNDERFITTING!)
+  Perplexity         : Resp 7465.51 | Seq 10428.08 (ideal: 9.5-12.8)
+  Model              : test-pp-async (~51.2M params)
+============================================================
+[Plot] Saved fine-tuning loss curves to 'bin\test-pp-async\test-pp-async-loss-plot-tune.pdf'.
+[Options] Overrode 12 parameter(s) from 'test-pp-async.options-optimize.json': batch_size=1, accum_steps=4, num_epochs=1, learning_rate=5e-06, beta=0.1, max_length=512, step_limit=5, pol_device=cuda:1, ref_device=cuda:0, multi_gpu_strategy=parallel-pipeline, single_gpu=False, precompute_total_steps=True
+[Memory] cuda:0: allocator cache capped at 15.10 GiB of 15.89 GiB (* GiB already in use as seen by CUDA).
+[Memory] cuda:1: allocator cache capped at 15.10 GiB of 15.89 GiB (* GiB already in use as seen by CUDA).
+=================================================================
+      GPT DIRECT PREFERENCE OPTIMIZATION (DPO)
+=================================================================
+Policy Device: cuda:1 | Ref Device: cuda:0 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.bfloat16)
+Model: test-pp-async (8 layers, 512 emb, 8 heads)
+Batch Size: 1 (Accum Steps: 4) | Epochs: 1 | LR: 0.0000050 | Beta: 0.1
+Preference Data: bin\test-pp-async\data\Optimizing (1 file(s))
+  [1/1] preference_combined_1.json
+Base Model: test-pp-async
+=================================================================
+[Reference Model] Initialized frozen reference model from SFT checkpoint (.chk.sft) on cuda:0.
+[Resume] Loaded base SFT weights for OPTIMIZE. Starting OPTIMIZE from Step 0.
+[Training Plan] This pass streamed 188 batches where the plan said 171 (+9.9%); the steps cache now holds the exact count and every later plan uses it (a resumed run re-anchors its LR cosine on the new horizon instead of jumping).
+[Steps Precompute] DPO: streamed the first epoch's 188 batches on the CPU in * to record the exact step counts of 1 file(s) (steps_cache.json).
+[Validation Buffer] Built fixed stratified DPO validation buffer: 32 batches across 1 file(s).
+[Streaming Loader] Initialized streaming preference loader across 1 file(s): ~188 train steps, ~32 val steps | step plan: exact (steps cache).
+[DPO Plan] Target epochs: 1 | Steps per epoch: 188 (Updates: 47) | Total updates: 47 | Step plan: exact (steps cache)
+[DPO Plan] Resumed from step 0. Training for 5 steps -> Target step: 5.
+[Gradient Accumulation] Accumulating gradients over 4 sub-steps before optimizer update.
+[Checkpointing] Model target: 'test-pp-async'
+[Initial State Evaluation]
+  Initial Train Loss : 5.2991 | Margin: +0.0000 | Chosen vs ref: +0.0000 | Acc: *
+  Initial Val Loss   : 5.7298 | Margin: +0.0000 | Chosen vs ref: +0.0000 | Acc: * (Eval took *)
+======================================================================
+Starting DPO Optimization Epoch 1/1
+======================================================================
+Ep 1/1 (Step 000020/000188 - 11% | Global 000005/000047 - 11%): Train 5.247, Val 5.562 | Margin: Tr +0.003, Val +0.054 | Acc: * | Chosen vs ref: Tr +0.104, Val +0.329 | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.0000049
+[VRAM cuda:0] peak 0.315 GB = weights 0.000 + grads 0.000 + optim 0.000 + other 0.315 | now 0.222 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 1.154 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.391 | now 0.635 | reserved * (unused *) | process * | device * used | alloc retries *
+[gptio] Saved OPTIMIZE checkpoint (Step 5) to: bin\test-pp-async\test-pp-async.chk.dpo
+[Step Limit Reached] Reached target step 5. Pausing DPO optimization cleanly.
+----------------------------------------------------------------------
+[Sample Model Response @ Epoch 1]
+  Instruction : <|im_start|>user
+Evaluate the following phrase by transforming it into the spelling given.
+freind -
+  Preferred   : The spelling of the given phrase "freind" is incorrect, the correct spelling is "friend".
+  Model Output: <text>
+----------------------------------------------------------------------
+[VRAM cuda:0] peak 0.312 GB = weights 0.000 + grads 0.000 + optim 0.000 + other 0.312 | now 0.222 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 0.725 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.000 | now 0.635 | reserved * (unused *) | process * | device * used | alloc retries *
+File processed: * | Total elapsed: * | ETA for remaining files: *
+============================================================
+               DPO OPTIMIZATION COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 7,799 (ideal: 25.6M-256.1M)
+  Final Losses       : Train 5.247 | Val 5.562
+  Val - Train Gap    : +0.315 (OVERFITTING!)
+  Final Margins      : Train +0.003 | Val +0.054
+  Model              : test-pp-async (~51.2M params)
+============================================================
+[Plot] Saved DPO telemetry curves to 'bin\test-pp-async\test-pp-async-loss-plot-optimize.pdf'.
+[Options] Overrode 5 parameter(s) from 'test-pp-async.options-infer.json': temperature=0.7, top_k=50, top_p=0.9, single_gpu=True, gpu_index=0
+[SpellCheck] Autocorrect initialized (SymSpell dictionary-based cleanup active).
+============================================================
+           Interactive GPT Conversation Console
+============================================================
+Model Target    : test-pp-async
+Precision       : FP16 (dtype: torch.bfloat16)
+Device          : cuda:0 (Available GPUs: 0)
+Temperature     : 0.7 | Top-K: 50 | Top-P: 0.9
+System Prompt   : You are a helpful and coherent AI assistant.
+============================================================
+[modelio] Successfully loaded model weights from: bin\test-pp-async\test-pp-async.pth
+⚡ [Performance] Response: * tok/s | Session Avg: * tok/s | Tokens: * in *

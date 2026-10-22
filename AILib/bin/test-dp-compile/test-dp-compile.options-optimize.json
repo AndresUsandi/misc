@@ -1,0 +1,15 @@
+{
+    "batch_size": 2,
+    "accum_steps": 2,
+    "num_epochs": 1,
+    "single_gpu": false,
+    "pol_device": 1,
+    "ref_device": 0,
+    "compile": true,
+    "precision": "fp16",
+    "learning_rate": 5e-06,
+    "beta": 0.1,
+    "max_length": 512,
+    "step_limit": 5,
+    "precompute_total_steps": true
+}

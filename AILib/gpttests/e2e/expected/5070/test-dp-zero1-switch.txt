@@ -1,0 +1,232 @@
+[Options] Overrode 12 parameter(s) from 'test-dp-zero1-switch.options-train.json': save_interval=3, batch_size=4, accum_steps=2, num_epochs=4, multi_gpu_strategy=data-parallelism-zero1, single_gpu=False, gpu_index=1, learning_rate=0.0005, resume=True, step_limit=3, eval_freq=2, precompute_total_steps=False
+=================================================================
+      FULLY-OPTIMIZED GPT TRAINING
+=================================================================
+Model: test-dp-zero1-switch
+Device: cuda:1 | Active GPUs: 2 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.bfloat16)
+Model: test-dp-zero1-switch (8 layers, 512 emb, 8 heads)
+Batch Size: 4 (Effective: 8) | Accum Steps: 2
+Epochs: 4 | AdamW LR: 0.0005 | Muon LR: 0.001 | Warmup Steps: 100
+Vocab: 50,304 | Context: 512 | Layers: 8 | Dim: 512 | Heads: 8
+Training Data Path: bin\test-dp-zero1-switch\data\Training
+Total training files found: 1
+  [1/1] bin\test-dp-zero1-switch\data\Training\TheVeredict\the-verdict.txt
+=================================================================
+Multi-GPU Mode: Wrapping model in MultiGpuGptModelZeRO1 across 2 GPUs (Data Parallelism, optimizer sharded, compile=False, primary=cuda:1)!
+[Multi-GPU ZeRO-1] Optimizer state sharded across 2 GPUs: cuda:1 25.8M params, cuda:0 25.5M params
+torch.compile skipped (default: disabled, use --compile to enable)
+Optimizer Configured: 1 ([Single Fused AdamW for all layers, default])
+[Resume] No existing checkpoint found for 'test-dp-zero1-switch' (TRAIN). Starting from scratch.
+[Training Plan] Resumed from step 0. Training for 3 steps -> Target step: 3.
+[Checkpointing] Periodic saves enabled every 3 steps -> 'test-dp-zero1-switch'.
+[Data] 1 file(s): 5,148 tokens -> 9 train windows x 512 (2 steps/epoch of 4, 8 total global steps), 1 val windows | fixed eval buffers: 1 val + 1 train batch(es) sampled across all files.
+==================================================
+Starting Epoch 1/4
+==================================================
+Ep 1/4 (Step 000002/000002 - 100% | Global 000002/000008 - 25%): Train 10.627, Val 10.676 | PPL: 43307.15 | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000015
+[VRAM cuda:0] peak 1.265 GB = weights 0.238 + grads 0.238 + optim 0.190 + other 0.600 | now 0.630 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 1.355 GB = weights 0.335 + grads 0.335 + optim 0.192 + other 0.494 | now 0.720 | reserved * (unused *) | process * | device * used | alloc retries *
+Sample: <text>
+Val by dataset: TheVeredict 10.676
+[VRAM cuda:0] peak 0.872 GB = weights 0.238 + grads 0.238 + optim 0.190 + other 0.207 | now 0.630 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 0.963 GB = weights 0.335 + grads 0.335 + optim 0.192 + other 0.102 | now 0.720 | reserved * (unused *) | process * | device * used | alloc retries *
+Progress: 2/8 steps | Session elapsed: * (*) | ETA for remaining steps: * (*)
+[gptio] Saved TRAIN checkpoint (Step 2) to: bin\test-dp-zero1-switch\test-dp-zero1-switch.chk.trn
+==================================================
+Starting Epoch 2/4
+==================================================
+[gptio] Saved TRAIN checkpoint (Step 3) to: bin\test-dp-zero1-switch\test-dp-zero1-switch.chk.trn
+Sample: <text>
+Val by dataset: TheVeredict 10.676
+[VRAM cuda:0] peak 1.260 GB = weights 0.238 + grads 0.429 + optim 0.190 + other 0.404 | now 0.725 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 1.353 GB = weights 0.335 + grads 0.335 + optim 0.192 + other 0.492 | now 0.818 | reserved * (unused *) | process * | device * used | alloc retries *
+Progress: 3/8 steps | Session elapsed: * (*) | ETA for remaining steps: * (*)
+[gptio] Saved TRAIN checkpoint (Step 3) to: bin\test-dp-zero1-switch\test-dp-zero1-switch.chk.trn
+[Step Limit Reached] Completed 3 step(s) in this session (Global Step: 3).
+Checkpoint saved for 'test-dp-zero1-switch'. Training paused cleanly.
+============================================================
+               TRAINING COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 4,096 (ideal: 1B-6.7B)
+  Final Losses       : Train 10.627 (ideal: 3.90-4.05) | Val 10.676 (ideal: 3.95-4.10)
+  Val - Train Gap    : +0.049 (UNDERFITTING!)
+  Perplexity         : 43307.15 (ideal: 51.7-60.1)
+  Model              : test-dp-zero1-switch (~51.2M params)
+============================================================
+[Plot] Saved pretraining loss curves to 'bin\test-dp-zero1-switch\test-dp-zero1-switch-loss-plot-train.pdf'.
+[Options] Overrode 12 parameter(s) from 'test-dp-zero1-switch.options-train.json': save_interval=3, batch_size=4, accum_steps=2, num_epochs=4, multi_gpu_strategy=data-parallelism-zero1, single_gpu=False, gpu_index=1, learning_rate=0.0005, resume=True, step_limit=3, eval_freq=2, precompute_total_steps=False
+=================================================================
+      FULLY-OPTIMIZED GPT TRAINING
+=================================================================
+Model: test-dp-zero1-switch
+Device: cuda:1 | Active GPUs: 2 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.bfloat16)
+Model: test-dp-zero1-switch (8 layers, 512 emb, 8 heads)
+Batch Size: 4 (Effective: 8) | Accum Steps: 2
+Epochs: 4 | AdamW LR: 0.0005 | Muon LR: 0.001 | Warmup Steps: 100
+Vocab: 50,304 | Context: 512 | Layers: 8 | Dim: 512 | Heads: 8
+Training Data Path: bin\test-dp-zero1-switch\data\Training
+Total training files found: 1
+  [1/1] bin\test-dp-zero1-switch\data\Training\TheVeredict\the-verdict.txt
+=================================================================
+Multi-GPU Mode: Wrapping model in MultiGpuGptModelDP across 2 GPUs (Data Parallelism, compile=False, primary=cuda:1)!
+torch.compile skipped (default: disabled, use --compile to enable)
+Optimizer Configured: 1 ([Single Fused AdamW for all layers, default])
+[Resume] Successfully loaded active TRAIN checkpoint at Global Step 3 (Epoch 2, File 1, Step 1, Tokens seen: 6,144).
+[Training Plan] Resumed from step 3. Training for 3 steps -> Target step: 6.
+[Checkpointing] Periodic saves enabled every 3 steps -> 'test-dp-zero1-switch'.
+[Data] 1 file(s): 5,148 tokens -> 9 train windows x 512 (2 steps/epoch of 4, 8 total global steps), 1 val windows | fixed eval buffers: 1 val + 1 train batch(es) sampled across all files.
+==================================================
+Starting Epoch 2/4
+==================================================
+[Resume] Fast-forwarding 1 step(s) in Epoch 2 -> Resuming from step 2/2...
+Ep 2/4 (Step 000002/000002 - 100% | Global 000004/000008 - 50%): Train 10.216, Val 10.311 | PPL: 30057.61 | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000025
+[VRAM cuda:0] peak 0.940 GB = weights 0.144 + grads 0.144 + optim 0.000 + other 0.652 | now 0.207 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 1.550 GB = weights 0.335 + grads 0.335 + optim 0.382 + other 0.499 | now 1.013 | reserved * (unused *) | process * | device * used | alloc retries *
+Sample: <text>
+Val by dataset: TheVeredict 10.311
+[VRAM cuda:0] peak 0.449 GB = weights 0.144 + grads 0.144 + optim 0.000 + other 0.161 | now 0.207 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 1.255 GB = weights 0.335 + grads 0.335 + optim 0.382 + other 0.204 | now 1.013 | reserved * (unused *) | process * | device * used | alloc retries *
+Progress: 4/8 steps | Session elapsed: * (*) | ETA for remaining steps: * (*)
+[gptio] Saved TRAIN checkpoint (Step 4) to: bin\test-dp-zero1-switch\test-dp-zero1-switch.chk.trn
+==================================================
+Starting Epoch 3/4
+==================================================
+Ep 3/4 (Step 000002/000002 - 100% | Global 000006/000008 - 75%): Train 10.053, Val 10.163 | PPL: 25931.33 | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000035
+[VRAM cuda:0] peak 1.165 GB = weights 0.144 + grads 0.144 + optim 0.000 + other 0.877 | now 0.238 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 1.745 GB = weights 0.335 + grads 0.335 + optim 0.382 + other 0.694 | now 1.014 | reserved * (unused *) | process * | device * used | alloc retries *
+[gptio] Saved TRAIN checkpoint (Step 6) to: bin\test-dp-zero1-switch\test-dp-zero1-switch.chk.trn
+Sample: <text>
+Val by dataset: TheVeredict 10.163
+[VRAM cuda:0] peak 0.481 GB = weights 0.144 + grads 0.144 + optim 0.000 + other 0.193 | now 0.238 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 1.288 GB = weights 0.335 + grads 0.335 + optim 0.382 + other 0.237 | now 1.045 | reserved * (unused *) | process * | device * used | alloc retries *
+Progress: 6/8 steps | Session elapsed: * (*) | ETA for remaining steps: * (*)
+[gptio] Saved TRAIN checkpoint (Step 6) to: bin\test-dp-zero1-switch\test-dp-zero1-switch.chk.trn
+[Step Limit Reached] Completed 3 step(s) in this session (Global Step: 6).
+Checkpoint saved for 'test-dp-zero1-switch'. Training paused cleanly.
+============================================================
+               TRAINING COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 12,288 (ideal: 1B-6.7B)
+  Final Losses       : Train 10.053 (ideal: 3.90-4.05) | Val 10.163 (ideal: 3.95-4.10)
+  Val - Train Gap    : +0.110 (UNDERFITTING!)
+  Perplexity         : 25931.33 (ideal: 51.7-60.1)
+  Model              : test-dp-zero1-switch (~51.2M params)
+============================================================
+[Plot] Saved pretraining loss curves to 'bin\test-dp-zero1-switch\test-dp-zero1-switch-loss-plot-train.pdf'.
+[Options] Overrode 12 parameter(s) from 'test-dp-zero1-switch.options-train.json': save_interval=3, batch_size=4, accum_steps=2, num_epochs=4, multi_gpu_strategy=data-parallelism-zero1, single_gpu=False, gpu_index=1, learning_rate=0.0005, resume=True, step_limit=3, eval_freq=2, precompute_total_steps=False
+=================================================================
+      FULLY-OPTIMIZED GPT TRAINING
+=================================================================
+Model: test-dp-zero1-switch
+Device: cuda:1 | Active GPUs: 2 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.bfloat16)
+Model: test-dp-zero1-switch (8 layers, 512 emb, 8 heads)
+Batch Size: 4 (Effective: 8) | Accum Steps: 2
+Epochs: 4 | AdamW LR: 0.0005 | Muon LR: 0.001 | Warmup Steps: 100
+Vocab: 50,304 | Context: 512 | Layers: 8 | Dim: 512 | Heads: 8
+Training Data Path: bin\test-dp-zero1-switch\data\Training
+Total training files found: 1
+  [1/1] bin\test-dp-zero1-switch\data\Training\TheVeredict\the-verdict.txt
+=================================================================
+Multi-GPU Mode: Wrapping model in MultiGpuGptModelZeRO1 across 2 GPUs (Data Parallelism, optimizer sharded, compile=False, primary=cuda:1)!
+[Multi-GPU ZeRO-1] Optimizer state sharded across 2 GPUs: cuda:1 25.8M params, cuda:0 25.5M params
+torch.compile skipped (default: disabled, use --compile to enable)
+Optimizer Configured: 1 ([Single Fused AdamW for all layers, default])
+[Resume] Successfully loaded active TRAIN checkpoint at Global Step 6 (Epoch 3, File 1, Step 2, Tokens seen: 12,288).
+[Training Plan] Resumed from step 6. Training for 3 steps -> Target step: 9.
+[Checkpointing] Periodic saves enabled every 3 steps -> 'test-dp-zero1-switch'.
+[Data] 1 file(s): 5,148 tokens -> 9 train windows x 512 (2 steps/epoch of 4, 8 total global steps), 1 val windows | fixed eval buffers: 1 val + 1 train batch(es) sampled across all files.
+==================================================
+Starting Epoch 3/4
+==================================================
+[Resume] Fast-forwarding 2 step(s) in Epoch 3 -> Resuming from step 3/2...
+Sample: <text>
+Val by dataset: TheVeredict 10.163
+[VRAM cuda:0] peak 0.486 GB = weights 0.238 + grads 0.238 + optim 0.190 + other 0.000 | now 0.437 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 0.804 GB = weights 0.335 + grads 0.335 + optim 0.192 + other 0.000 | now 0.562 | reserved * (unused *) | process * | device * used | alloc retries *
+Progress: 6/8 steps | Session elapsed: * (*) | ETA for remaining steps: n/a
+[gptio] Saved TRAIN checkpoint (Step 6) to: bin\test-dp-zero1-switch\test-dp-zero1-switch.chk.trn
+==================================================
+Starting Epoch 4/4
+==================================================
+Ep 4/4 (Step 000002/000002 - 100% | Global 000008/000008 - 100%): Train 9.915, Val 10.047 | PPL: 23077.29 | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000045
+[VRAM cuda:0] peak 1.454 GB = weights 0.238 + grads 0.238 + optim 0.190 + other 0.789 | now 0.630 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 1.545 GB = weights 0.335 + grads 0.335 + optim 0.192 + other 0.683 | now 0.720 | reserved * (unused *) | process * | device * used | alloc retries *
+Sample: <text>
+Val by dataset: TheVeredict 10.047
+[VRAM cuda:0] peak 0.873 GB = weights 0.238 + grads 0.238 + optim 0.190 + other 0.208 | now 0.630 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 0.993 GB = weights 0.335 + grads 0.335 + optim 0.192 + other 0.132 | now 0.752 | reserved * (unused *) | process * | device * used | alloc retries *
+Progress: 8/8 steps | Session elapsed: * (*) | ETA for remaining steps: * (*)
+[gptio] Saved TRAIN checkpoint (Step 8) to: bin\test-dp-zero1-switch\test-dp-zero1-switch.chk.trn
+[gptio] Saved TRAIN checkpoint (Step 8) to: bin\test-dp-zero1-switch\test-dp-zero1-switch.chk.trn
+[modelio] Successfully saved clean final model to: bin\test-dp-zero1-switch\test-dp-zero1-switch.pth
+============================================================
+               TRAINING COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 16,384 (ideal: 1B-6.7B)
+  Final Losses       : Train 9.915 (ideal: 3.90-4.05) | Val 10.047 (ideal: 3.95-4.10)
+  Val - Train Gap    : +0.132 (UNDERFITTING!)
+  Perplexity         : 23077.29 (ideal: 51.7-60.1)
+  Model              : test-dp-zero1-switch (~51.2M params)
+============================================================
+[Plot] Saved pretraining loss curves to 'bin\test-dp-zero1-switch\test-dp-zero1-switch-loss-plot-train.pdf'.
+[Options] Overrode 9 parameter(s) from 'test-dp-zero1-switch.options-tune.json': batch_size=4, accum_steps=2, num_epochs=1, multi_gpu_strategy=data-parallelism-zero1, single_gpu=False, learning_rate=0.0005, max_length=512, step_limit=5, precompute_total_steps=True
+[Memory] cuda:0: allocator cache capped at 15.10 GiB of 15.89 GiB (* GiB already in use as seen by CUDA).
+[Memory] cuda:1: allocator cache capped at 15.10 GiB of 15.89 GiB (* GiB already in use as seen by CUDA).
+=================================================================
+      FULLY-OPTIMIZED GPT INSTRUCTION FINE-TUNING (SFT)
+=================================================================
+Device: cuda:0 | Active GPUs: 2 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.bfloat16)
+Model: test-dp-zero1-switch (8 layers, 512 emb, 8 heads)
+Batch Size: 4 (Accum Steps: 2) | Epochs: 1 | Peak LR: 0.000500
+Instruction Data: bin\test-dp-zero1-switch\data\Tuning (1 file(s))
+  [1/1] combined_1.txt
+=================================================================
+Multi-GPU Mode: Wrapping model in MultiGpuGptModelZeRO1 across 2 GPUs (Data Parallelism, optimizer sharded, compile=False, primary=cuda:0)!
+[Multi-GPU ZeRO-1] Optimizer state sharded across 2 GPUs: cuda:0 25.8M params, cuda:1 25.5M params
+[Resume] Loaded base pre-trained weights for TUNE. Starting TUNE from Step 0.
+[Training Plan] This pass streamed 19 batches where the plan said 15 (+26.7%); the steps cache now holds the exact count and every later plan uses it (a resumed run re-anchors its LR cosine on the new horizon instead of jumping).
+[Steps Precompute] SFT: streamed the first epoch's 19 batches on the CPU in * to record the exact step counts of 1 file(s) (steps_cache.json).
+[Validation Buffer] Built fixed stratified SFT validation buffer: 8 batches across 1 file(s).
+[Streaming Loader] Initialized streaming instruction loader across 1 file(s): ~19 train steps, ~8 val steps | step plan: exact (steps cache).
+[Training Plan] Target epochs: 1 | Steps per epoch: 19 (Optimizer updates: 10) | Planned updates: 10 | Step plan: exact (steps cache)
+[Training Plan] Resumed from step 0. Training for 5 steps -> Target step: 5.
+[Gradient Accumulation] Accumulating gradients over 2 sub-steps before optimizer update.
+[Checkpointing] Model target: 'test-dp-zero1-switch'
+[Initial State Evaluation]
+  Initial Train Loss : 10.3575
+  Initial Val Loss   : 10.1335 (Seq: 10.0007) (PPL: Resp 25173.52 | Seq 22042.10) (Eval took *)
+======================================================================
+Starting Fine-Tuning Epoch 1/1
+======================================================================
+Ep 1/1 (Step 000010/000019 - 53% | Global 000005/000010 - 50%): Train 10.128, Val 8.484 (Seq 9.060) | PPL: 4835.85 (Seq 8605.45) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000251
+[VRAM cuda:0] peak 1.548 GB = weights 0.335 + grads 0.335 + optim 0.192 + other 0.687 | now 0.656 | reserved * (unused *) | process * | device * used | alloc retries *
+[VRAM cuda:1] peak 1.453 GB = weights 0.238 + grads 0.238 + optim 0.190 + other 0.787 | now 0.528 | reserved * (unused *) | process * | device * used | alloc retries *
+[gptio] Saved TUNE checkpoint (Step 5) to: bin\test-dp-zero1-switch\test-dp-zero1-switch.chk.sft
+[Step Limit Reached] Reached target step 5. Pausing fine-tuning cleanly.
+============================================================
+               FINE-TUNING COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 15,548 (ideal: 200M-1B)
+  Final Losses       : Train 10.128 | Val 8.484 (Seq: 9.060, ideal: 2.25-2.55)
+  Val - Train Gap    : -1.644 (UNDERFITTING!)
+  Perplexity         : Resp 4835.85 | Seq 8605.45 (ideal: 9.5-12.8)
+  Model              : test-dp-zero1-switch (~51.2M params)
+============================================================
+[Plot] Saved fine-tuning loss curves to 'bin\test-dp-zero1-switch\test-dp-zero1-switch-loss-plot-tune.pdf'.
+[Options] Overrode 5 parameter(s) from 'test-dp-zero1-switch.options-infer.json': temperature=0.7, top_k=50, top_p=0.9, single_gpu=True, gpu_index=0
+[SpellCheck] Autocorrect initialized (SymSpell dictionary-based cleanup active).
+============================================================
+           Interactive GPT Conversation Console
+============================================================
+Model Target    : test-dp-zero1-switch
+Precision       : FP16 (dtype: torch.bfloat16)
+Device          : cuda:0 (Available GPUs: 0)
+Temperature     : 0.7 | Top-K: 50 | Top-P: 0.9
+System Prompt   : You are a helpful and coherent AI assistant.
+============================================================
+[modelio] Successfully loaded model weights from: bin\test-dp-zero1-switch\test-dp-zero1-switch.pth
+⚡ [Performance] Response: * tok/s | Session Avg: * tok/s | Tokens: * in *

@@ -7,5 +7,6 @@
     "max_length": 512,
     "step_limit": 5,
     "single_gpu": true,
-    "override_data_folder": "bin/test-basic/data/Optimizing"
+    "override_data_folder": "bin/test-basic/data/Optimizing",
+    "precompute_total_steps": true
 }

@@ -8,5 +8,6 @@
     "multi_gpu_strategy": "parallel-pipeline",
     "even_layers": true,
     "gpu_index": 1,
-    "single_gpu": false
+    "single_gpu": false,
+    "precompute_total_steps": true
 }

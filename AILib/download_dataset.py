@@ -10,7 +10,7 @@ from dataset.registry import (
     get_all_dataset_keys,
     get_dataset_category,
 )
-from dataset.download import download_and_prepare_dataset
+from dataset.download import download_and_prepare_dataset, check_dataset_exists
 from gptio.pathutil import STAGE_TRAIN, STAGE_TUNE, STAGE_OPTIMIZE
 
 
@@ -266,6 +266,16 @@ def main():
 
     total_datasets = len(dataset_keys)
     for idx, d_key in enumerate(dataset_keys, 1):
+        existing_dir = check_dataset_exists(
+            dataset_key=d_key,
+            model_name=args.model_name,
+            models_base_dir=args.models_base_dir,
+            dataset_purpose=args.purpose,
+        )
+        if existing_dir is not None:
+            print(f"[Warning] Dataset '{d_key}' already exists at '{existing_dir}'. Skipping download.")
+            continue
+
         if total_datasets > 1:
             print(f"\n{'='*80}")
             print(f"[{idx}/{total_datasets}] DOWNLOADING DATASET: {d_key}")

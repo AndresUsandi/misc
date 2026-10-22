@@ -7,5 +7,6 @@
     "max_length": 512,
     "step_limit": 5,
     "single_gpu": true,
-    "precision": "fp32"
+    "precision": "fp32",
+    "precompute_total_steps": true
 }

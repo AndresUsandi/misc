@@ -8,5 +8,6 @@
     "step_limit": 5,
     "single_gpu": true,
     "precision": "fp8",
-    "compile": true
+    "compile": true,
+    "precompute_total_steps": true
 }

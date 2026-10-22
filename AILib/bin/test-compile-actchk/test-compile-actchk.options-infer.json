@@ -3,5 +3,5 @@
     "top_k": 50,
     "top_p": 0.9,
     "single_gpu": true,
-    "gpu_index": 1
+    "gpu_index": 0
 }

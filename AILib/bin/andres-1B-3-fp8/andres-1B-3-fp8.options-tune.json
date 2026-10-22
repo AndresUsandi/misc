@@ -1,0 +1,23 @@
+{
+    "batch_size": 16,
+    "accum_steps": 16,
+    "num_epochs": 1,
+    "num_epochs_dataset_specific": [ { "smol_smoltalk": 2 }, { "dolly": 2 }, { "everyday_conversations": 2 }, { "no_robots": 2 }, { "oasst2": 2 }, { "capybara": 2 }, { "opus_writingprompts": 2 }, { "smoltalk_magpie_ultra": 1 }, { "ultrachat_200k": 0.5 }, { "gsm8k": 3 }, { "metamath_qa": 3 }, { "numinamath_cot": 1 }, { "tulu_3_sft": 1 }, { "camel_math": 1 }, { "camel_physics": 1 }, { "camel_chemistry": 1 }, { "camel_biology": 1 }, { "python_instructions_18k": 2 }, { "mbpp": 2 }, { "magicoder_75k": 1 } ],
+    "chunk_size": 4096,
+    "recompute_lmhead": false,
+    "single_gpu": false,
+    "gpu_index": 0,
+    "multi_gpu_strategy": "data-parallelism",
+    "compile": true,
+    "precision": "fp8",
+    "warmup_ratio": 0.03,
+    "learning_rate": 0.00006,
+    "min_lr": 0.000006,
+    "weight_decay": 0.01,
+    "eval_freq": 50,
+    "eval_iter": 20,
+    "save_interval": 200,
+    "max_length": 2048,
+    "pad_to_multiple_of": 128,
+    "precompute_total_steps": true
+}

@@ -1,0 +1,1 @@
+A/B test of andres-350M-2-fp8 with one change: activation_checkpointing: true in every stage (blocks recompute their activations in backward instead of keeping them). Compare its checkpoints, loss curves, VRAM and tok/sec against andres-350M-2-fp8.

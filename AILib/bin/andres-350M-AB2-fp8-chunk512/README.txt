@@ -1,0 +1,1 @@
+A/B test of andres-350M-2-fp8 with one change: chunk_size: 512 instead of 4096 in pretraining and SFT (DPO already runs at the default 512). Compare its checkpoints, loss curves, VRAM and tok/sec against andres-350M-2-fp8.

@@ -1,0 +1,1 @@
+A/B test of andres-350M-2 with one change: json_precompute: true in DPO (reference log-probs precomputed into the dataset JSON, no reference model in VRAM; pretraining and SFT are identical to the baseline). Compare its checkpoints, loss curves, VRAM and tok/sec against andres-350M-2.

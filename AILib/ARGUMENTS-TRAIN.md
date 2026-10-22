@@ -24,6 +24,7 @@ This document provides a comprehensive technical reference for every command-lin
    - [`--eval_freq`](#eval_freq)
    - [`--eval_iter`](#eval_iter)
    - [`--save_interval`](#save_interval)
+   - [`--checkpoint_keep_n`](#checkpoint_keep_n)
    - [`--step_limit`](#step_limit)
 4. [Hardware, Multi-GPU & Precision](#4-hardware-multi-gpu--precision)
    - [`--device`](#device)
@@ -34,6 +35,7 @@ This document provides a comprehensive technical reference for every command-lin
    - [`--precision`](#precision)
    - [`--compile`](#compile)
    - [`--coordinate_descent_tuning`](#coordinate_descent_tuning)
+   - [`--max_autotune`](#max_autotune)
    - [`--activation_checkpointing`](#activation_checkpointing)
    - [`--freeze_embeddings`](#freeze_embeddings)
    - [`--multi_gpu_strategy`](#multi_gpu_strategy)
@@ -63,6 +65,8 @@ This document provides a comprehensive technical reference for every command-lin
    - [`--verbose`](#verbose)
    - [`--test_mode`](#test_mode)
    - [`--beta`](#beta)
+   - [`--dpo_sft_weight`](#dpo_sft_weight)
+   - [`--dpo_truncate_long_pairs`](#dpo_truncate_long_pairs)
 
 ---
 
@@ -82,11 +86,11 @@ This document provides a comprehensive technical reference for every command-lin
 #### In-Depth Explanation
 Selects which stage of the LLM lifecycle pipeline to execute:
 1. **`Training`** (Pretraining): Next-token prediction across unannotated textual corpora (Gutenberg, Cosmopedia, Wikipedia, etc.). Initializes embeddings, transformer blocks, and heads from random normal initialization, running the fully optimized Muon/AdamW pretraining loop.
-2. **`Fine-Tuning`** (Supervised Fine-Tuning / SFT): Instruction-following adaptation using prompt/response pairs (Alpaca, Dolly, No Robots, OpenHermes). Automatically applies prompt masking (`-100` cross-entropy targets) so loss is strictly evaluated and backpropagated on assistant answers. Resumes from the pretraining checkpoint (`.trn.chk` or base weights).
-3. **`Optimizing`** (Direct Preference Optimization / DPO): Post-training alignment using pairwise preferences (chosen vs. rejected responses). Jointly coordinates a trainable policy model and a frozen reference model to optimize implicit reward margins without separate reward model training. Resumes from the SFT checkpoint (`.sft.chk`).
+2. **`Fine-Tuning`** (Supervised Fine-Tuning / SFT): Instruction-following adaptation using prompt/response pairs (Alpaca, Dolly, No Robots, OpenHermes). Automatically applies prompt masking (`-100` cross-entropy targets) so loss is strictly evaluated and backpropagated on assistant answers. Resumes from the pretraining checkpoint (`.chk.trn` or base weights).
+3. **`Optimizing`** (Direct Preference Optimization / DPO): Post-training alignment using pairwise preferences (chosen vs. rejected responses). Jointly coordinates a trainable policy model and a frozen reference model to optimize implicit reward margins without separate reward model training. Resumes from the SFT checkpoint (`.chk.sft`).
 
 #### Tradeoffs & Best Practices
-Always follow the natural order of LLM training: `Training` -> `Fine-Tuning` -> `Optimizing`. Each process stage resolves its own options file (`.options-train.json`, `.options-tune.json`, `.options-optimize.json`) and writes to dedicated checkpoint types (`.trn.chk`, `.sft.chk`, `.dpo.chk`).
+Always follow the natural order of LLM training: `Training` -> `Fine-Tuning` -> `Optimizing`. Each process stage resolves its own options file (`.options-train.json`, `.options-tune.json`, `.options-optimize.json`) and writes to dedicated checkpoint types (`.chk.trn`, `.chk.sft`, `.chk.dpo`).
 
 ---
 
@@ -140,8 +144,8 @@ The root folder under which all model subdirectories, datasets, checkpoints, and
 
 #### In-Depth Explanation
 Controls whether the engine looks up existing checkpoints before training begins. Can be supplied on the command line as `--resume`, with an explicit boolean value (`--resume true` / `--resume false`), or defined in stage-specific JSON configuration files (`"resume": true` / `"resume": false`).
-- **When `True` (default)**: Detects stage-specific checkpoints (`.trn.chk` for pretraining, `.sft.chk` for tuning, `.dpo.chk` for optimizing). Automatically restores model weights, optimizer states (first and second momentum buffers for AdamW and Muon), global step, epoch index, completed file indices, step within file, loss telemetry history, and accumulated training time.
-- **When `False` (`--resume false` or `"resume": false`)**: Ignores existing stage checkpoints and begins fresh from step 0. In SFT and DPO, it loads the base weights from the preceding stage (`.trn.chk` or base `.pth`) while initializing optimizer states from scratch. Redundant `--no_resume` arguments have been removed in favor of setting `--resume false`.
+- **When `True` (default)**: Detects stage-specific checkpoints (`.chk.trn` for pretraining, `.chk.sft` for tuning, `.chk.dpo` for optimizing). Automatically restores model weights, optimizer states (first and second momentum buffers for AdamW and Muon), global step, epoch index, completed file indices, step within file, loss telemetry history, and accumulated training time.
+- **When `False` (`--resume false` or `"resume": false`)**: Ignores existing stage checkpoints and begins fresh from step 0. In SFT and DPO, it loads the base weights from the preceding stage (`.chk.trn` or base `.pth`) while initializing optimizer states from scratch. Redundant `--no_resume` arguments have been removed in favor of setting `--resume false`.
 
 ---
 
@@ -159,7 +163,7 @@ Controls whether the engine looks up existing checkpoints before training begins
 #### In-Depth Explanation
 The physical mini-batch size loaded into GPU memory per forward/backward step.
 - **In Single-GPU**: The model processes `batch_size` sequences simultaneously.
-- **In Multi-GPU Data Parallelism (`data-parallelism`)**: The `batch_size` is evenly divided across GPUs (e.g. `batch_size=16` across 2 GPUs assigns 8 sequences per GPU).
+- **In Multi-GPU Data Parallelism (`data-parallelism`, `data-parallelism-zero1`)**: The `batch_size` is evenly divided across GPUs (e.g. `batch_size=16` across 2 GPUs assigns 8 sequences per GPU).
 - **Effective Batch Size**: `Effective Batch Size = batch_size * accum_steps`.
 
 #### Tradeoffs
@@ -286,7 +290,7 @@ Interval in training steps between validation evaluations. At each evaluation in
 - **Default**: `1`
 
 #### In-Depth Explanation
-Number of mini-batches sampled from the validation set during each evaluation pass. Increasing `eval_iter` provides a lower-variance validation loss estimate at the expense of evaluation runtime.
+Number of mini-batches sampled from the validation set during each evaluation pass. Increasing `eval_iter` provides a lower-variance validation loss estimate at the expense of evaluation runtime. In pretraining the validation set is a fixed buffer of `eval_iter` batches of held-out windows sampled (with a fixed seed) across all files, so the number is comparable from one evaluation to the next and across resumes; the reported train loss comes from a train-window buffer sampled the same way, so the Val - Train gap measures memorization. With the 350M configuration (`batch_size 16`, 1024 tokens) `eval_iter 5` scores 80 windows, noisy to about Â±0.05; `20` is a better production value and costs a few seconds per evaluation. A per-dataset validation breakdown (`Val by dataset: ...`) is printed at every checkpoint save and epoch end.
 
 ---
 
@@ -300,6 +304,22 @@ Number of mini-batches sampled from the validation set during each evaluation pa
 
 #### In-Depth Explanation
 Frequency in training steps at which stage checkpoints are written to disk. Checkpoint writes use atomic file swaps with retry logic and file locking to guarantee that crashes or sudden interruptions cannot corrupt existing checkpoint files.
+
+---
+
+<a id="checkpoint_keep_n"></a>
+<a id="--checkpoint_keep_n"></a>
+### `--checkpoint_keep_n`
+- **CLI Flag**: `--checkpoint_keep_n`
+- **JSON Key**: `checkpoint_keep_n`
+- **Type**: `int`
+- **Default**: `10`
+
+#### In-Depth Explanation
+Keeps rollback points for every stage (pretraining, SFT, DPO). A save writes the new checkpoint next to the old one and then swaps names, so after every save `<model_name>.chk.<stage>.tmp` holds the checkpoint that was just replaced; the next save normally overwrites it. On every N-th save of a run that backup is instead renamed to `<model_name>-<YYYYMMDD-hhmmss>.chk.<stage>` (e.g. `andres1s-350M-fp8-20260930-220905.chk.trn`), stamped with its own save time. A rename costs nothing, so a 4 GB checkpoint is archived instantly.
+- With `save_interval` 2500 and the default 10, an archive appears every 25,000 steps; `0` disables archiving.
+- Archives are never loaded automatically (resume always takes `<model_name>.chk.<stage>`) and never deleted: prune them by hand. To roll back, rename the last good archive to `<model_name>.chk.<stage>` and start the stage again; it resumes from there.
+- The count restarts with every run (a resumed run archives again N saves after it starts).
 
 ---
 
@@ -341,7 +361,7 @@ Explicit target device specification (e.g. `cuda`, `cuda:0`, `cpu`). When omitte
 - **Default**: `None`
 
 #### In-Depth Explanation
-Target CUDA device specification for the trainable **policy model** during Direct Preference Optimization (`STAGE_OPTIMIZE`). In dual-GPU setups, assigning `--pol_device cuda:0` and `--ref_device cuda:1` allows both models to reside on dedicated GPUs without sharing VRAM.
+Target CUDA device specification for the trainable **policy model** during Direct Preference Optimization (`STAGE_OPTIMIZE`). In dual-GPU setups, assigning `--pol_device cuda:0` and `--ref_device cuda:1` allows both models to reside on dedicated GPUs without sharing VRAM. Under the data-parallel strategies (`--multi_gpu_strategy data-parallelism` / `data-parallelism-zero1` with `single_gpu=False`) it is the primary GPU of the data-parallel wrapper (fp32 masters and optimizer state), and every GPU holds a policy copy and a reference copy.
 
 ---
 
@@ -354,7 +374,7 @@ Target CUDA device specification for the trainable **policy model** during Direc
 - **Default**: `None`
 
 #### In-Depth Explanation
-Target CUDA device specification for the frozen **reference model** during Direct Preference Optimization (`STAGE_OPTIMIZE`). When multi-GPU is available and `single_gpu=False`, defaults to `cuda:1`.
+Target CUDA device specification for the frozen **reference model** during Direct Preference Optimization (`STAGE_OPTIMIZE`). When multi-GPU is available and `single_gpu=False`, defaults to `cuda:1`. Only the pipeline strategy uses this policy-here / reference-there layout: under `data-parallelism` / `data-parallelism-zero1` the pairs of every micro-batch are split across the GPUs and each GPU scores its share with its own policy copy and its own frozen reference copy, so this setting is ignored.
 
 ---
 
@@ -367,7 +387,7 @@ Target CUDA device specification for the frozen **reference model** during Direc
 - **Default**: `True`
 
 #### In-Depth Explanation
-Forces single-GPU execution even if multiple CUDA GPUs are physically present. When `True` (the default), multi-GPU wrappers (`MultiGpuGptModelDP` and `MultiGpuGptModelPP`) are completely bypassed, running directly on `--gpu_index`. Multi-GPU training must be opted into with `--single_gpu false` or `"single_gpu": false` in the stage options file.
+Forces single-GPU execution even if multiple CUDA GPUs are physically present. When `True` (the default), multi-GPU wrappers (`MultiGpuGptModelDP`, `MultiGpuGptModelZeRO1` and `MultiGpuGptModelPP`) are completely bypassed, running directly on `--gpu_index`. Multi-GPU training must be opted into with `--single_gpu false` or `"single_gpu": false` in the stage options file.
 
 ---
 
@@ -400,8 +420,9 @@ When multi-GPU execution is enabled (`--single_gpu false`):
 
 #### In-Depth Explanation
 Controls computation precision and hardware Tensor Core acceleration:
-- **`fp16`** (Automatic Mixed Precision / AMP): Model weights reside in `torch.bfloat16` (or `torch.float16` depending on hardware support). Operations run in half precision via `torch.amp.autocast`, while master weights and optimizer moments are tracked with `GradScaler`. Provides optimal throughput and halved VRAM consumption on modern RTX / datacenter GPUs.
-- **`fp8`** (Float8 training via `torchao`): Master weights, activations and autocast stay `bfloat16` exactly as in `fp16`; every `Linear` layer (including the tied LM head) is swapped for a `Float8Linear` that runs its matmuls on the FP8 tensor cores (E4M3 activations/weights, E5M2 gradients) with tensorwise dynamic scaling. Supported on Ada Lovelace (RTX 40-series), Blackwell (RTX 50-series) and Hopper; on other GPUs it falls back to `fp16` with a warning. Parameter names and checkpoints are unchanged, so precision can be switched at any checkpoint in either direction. **Requires `--compile`**: the casts only fuse away under `torch.compile` (eager fp8 is slower than `fp16`). Measured on RTX 5070 Ti with the 355M model: ~25% less step time and ~25% less peak VRAM than `fp16`.
+In every mode the trainable weights and the optimizer moments are kept in `torch.float32` (master weights). An optimizer step is `lr Ã— update`, mostly below `1e-4` once the schedule decays, and `bfloat16`/`float16` weights (about 3 significant digits) cannot absorb steps that small: they round back to the old value and training silently stalls (measured on the 355M model trained with bf16 weights: at `lr = 5e-5` half of the parameters no longer changed at all, at `3e-5` three quarters). The compute precision only decides what `torch.amp.autocast` runs the matmuls in, so activation memory and speed are those of the low-precision mode.
+- **`fp16`** (Automatic Mixed Precision / AMP): Operations run in `torch.bfloat16` (or `torch.float16` depending on hardware support, with `GradScaler` loss scaling) via `torch.amp.autocast` over the fp32 master weights. Provides optimal throughput on modern RTX / datacenter GPUs.
+- **`fp8`** (Float8 training via `torchao`): Master weights and autocast stay exactly as in `fp16`; every `Linear` layer (including the tied LM head) is swapped for a `Float8Linear` that runs its matmuls on the FP8 tensor cores (E4M3 activations/weights, E5M2 gradients) with tensorwise dynamic scaling. Supported on Ada Lovelace (RTX 40-series), Blackwell (RTX 50-series) and Hopper; on other GPUs it falls back to `fp16` with a warning. Parameter names and checkpoints are unchanged, so precision can be switched at any checkpoint in either direction. **Requires `--compile`**: the casts only fuse away under `torch.compile` (eager fp8 is slower than `fp16`). Measured on RTX 5070 Ti with the 355M model: ~25% less step time and ~25% less peak VRAM than `fp16`.
 - **`fp32`**: Full 32-bit floating point precision without autocast. Disables Tensor Core acceleration and doubles memory usage; useful strictly for numerical debugging.
 
 ---
@@ -434,6 +455,21 @@ Requires `--compile`. Makes Inductor autotune the launch configuration (block si
 - **Measured gain**: +9% tok/sec on `andres1s-350M-fp8` pretraining (2x RTX 5070 Ti, 69k -> 75k tok/sec), about 3.3 hours saved on a 37 hour run.
 - **Cost**: every compile takes ~5x longer. A cold pretraining start needs ~15 minutes instead of ~3 (the two data-parallel replicas compile one after another, since concurrent compiles race on the Windows Triton cache), plus ~3 minutes at the first evaluation. Both are cached: warm restarts stay at ~1 minute.
 - **When it pays off**: runs that compile a handful of times and then train for hours (static-shape pretraining: break-even after ~2.5 hours of training). It is a net loss when variable batch shapes trigger many recompiles, as each recompile pays the ~15 minutes again.
+
+---
+
+<a id="max_autotune"></a>
+<a id="--max_autotune"></a>
+### `--max_autotune`
+- **CLI Flag**: `--max_autotune`
+- **JSON Key**: `max_autotune`
+- **Type**: `bool`
+- **Default**: `False`
+
+#### In-Depth Explanation
+Requires `--compile`. Compiles with Inductor's `max-autotune-no-cudagraphs` mode: every matmul is benchmarked against Triton-generated alternatives and the winner is kept, and every fused kernel's launch configuration is coordinate-descent tuned (the mode includes `--coordinate_descent_tuning`, which becomes redundant). The math is unchanged; a kernel that wins differs from cuBLAS only in the order it sums products. Measured on `andres1s-350M-fp8` with the same batch and weights: loss 11.0380 with the default kernels vs 11.0387 autotuned, far below the step-to-step movement of the loss.
+- **Measured gain**: +3.4% tok/sec over coordinate-descent tuning alone on `andres1s-350M-fp8` (2x RTX 5070 Ti).
+- **Cost**: a cold compile takes ~15 minutes instead of ~9 (cached afterwards, warm restarts stay ~1 minute). Every new input shape re-tunes, so leave it off for SFT/DPO: their variable sequence lengths would compile for an hour.
 
 ---
 
@@ -476,13 +512,14 @@ Freezes token embedding (`tok_emb`) and positional embedding (`pos_emb`) weights
 - **CLI Flag**: `--multi_gpu_strategy`
 - **JSON Key**: `multi_gpu_strategy`
 - **Type**: `str`
-- **Choices**: `data-parallelism`, `parallel-pipeline`
+- **Choices**: `data-parallelism`, `data-parallelism-zero1`, `parallel-pipeline`
 - **Default**: `"data-parallelism"`
 
 #### In-Depth Explanation
-Determines how multi-GPU hardware acceleration is partitioned:
-1. **`data-parallelism` (`MULTI_GPU_DP`)**: Replicates the entire model onto every active GPU. Each GPU processes an independent slice of the physical batch (`batch_size // num_gpus`). Forward and backward passes run concurrently via background worker threads, gradients are asynchronously averaged across GPUs, and master weights are synchronized after optimizer updates. Provides near-linear throughput scaling.
-2. **`parallel-pipeline` (`MULTI_GPU_PP`)**: Splits transformer layers across GPUs (e.g. GPU 0 hosts layers 0–4; GPU 1 hosts layers 5–7 and the output head). Necessary when a model is too large to fit on a single GPU's VRAM.
+Determines how multi-GPU hardware acceleration is partitioned. All three strategies compute the same thing (the same averaged gradients, the same optimizer update on fp32 master weights); they differ in where the work and the memory live, and checkpoints are interchangeable between the two data-parallel ones.
+1. **`data-parallelism` (`MULTI_GPU_DP`, `MultiGpuGptModelDP`)**: Replicates the entire model onto every active GPU. Each GPU processes an independent slice of the physical batch (`batch_size // num_gpus`) and accumulates its own fp32 gradients over `accum_steps` with no traffic between micro-steps. Once per optimizer update the gradients are averaged onto the primary GPU, which alone holds the fp32 master weights plus the entire optimizer state and runs the update, then broadcasts the new weights to the other GPUs. Memory per parameter on the primary with AdamW: 4 (weight) + 4 (gradient) + 8 (moments) = 16 bytes before activations, which makes the primary the model-size ceiling (~650M parameters at a 2k context on a 16 GB card); the other GPUs hold only weights and gradients. All update traffic flows through the primary (N-1 model sizes in and out per update).
+2. **`data-parallelism-zero1` (`MULTI_GPU_DP_ZERO1`, `MultiGpuGptModelZeRO1`)**: The same data parallelism with the optimizer sharded across the GPUs (ZeRO stage 1, the "zero redundancy optimizer"). Every parameter has an owner GPU (largest tensors first onto the least loaded GPU, so the shards are balanced and identical on every run) that keeps its fp32 master and its optimizer state (AdamW moments, Muon momentum). The update becomes a reduce-scatter (each owner receives only its shard's gradients and averages them), one optimizer step per shard running on every GPU in parallel, and an all-gather of the updated shards into every GPU's compute copy. Memory per parameter per GPU: weights + gradients + 1/N of the optimizer state, i.e. 12 bytes on 2 GPUs and 9.3 on 6 instead of 16 on the primary, so the ceiling rises to ~900M on 2 x 16 GB and ~1.5B on 6, and the two cards of a pair end up equally loaded (measured on the 650M at 2k: 12.5 / 7.7 GiB peak under `data-parallelism`, 10.1 / 10.1 under `data-parallelism-zero1`). Traffic per GPU is 2 x (N-1)/N model sizes per update regardless of N, spread over all links instead of funnelled through one card; like plain data parallelism nothing crosses the bus between micro-steps, so it is just as friendly to slow PCIe links. Use it when the optimizer state is what does not fit.
+3. **`parallel-pipeline` (`MULTI_GPU_PP`, `MultiGpuGptModelPP`)**: Splits transformer layers across GPUs (e.g. GPU 0 hosts layers 0â€“4; GPU 1 hosts layers 5â€“7 and the output head), so each GPU holds and updates only its stage: the lowest traffic of the three (activations at the stage boundaries, per micro-step) and the way to train a model that does not fit on one GPU even with the optimizer sharded. The price is idle time while the pipeline fills and drains unless many micro-batches are in flight (see `--multi_stage_micro_batching`, `--1f1b`) and the activations of several micro-batches resident per stage.
 
 ---
 
@@ -605,7 +642,7 @@ Explicit filesystem override specifying a direct dataset file or directory. Bypa
 - **Default**: `0.90` (90%)
 
 #### In-Depth Explanation
-Proportion of the dataset allocated to training splits in SFT (`STAGE_TUNE`) and DPO (`STAGE_OPTIMIZE`). In pretraining, controls the train/validation token split within each chunked text file.
+Proportion of the dataset allocated to training splits in SFT (`STAGE_TUNE`) and DPO (`STAGE_OPTIMIZE`). In pretraining, controls the train/validation split of every text file's context windows (the validation windows are the tail of each file). The training windows of all files form one pool that every epoch permutes with a fixed seed, so each batch mixes all sources instead of streaming one file at a time.
 
 ---
 
@@ -648,7 +685,7 @@ SFT and DPO only (pretraining windows already have a fixed length). Rounds every
 - **Why**: `torch.compile` builds a new version of the model for every batch shape it has not seen yet and falls back to slow eager mode after 64 of them. With exact padding, the `andres1s-350M-fp8` SFT run compiled 7 forward + 17 loss-head versions in its first 20 steps (about 15 minutes of compiling for 20 steps of training) and kept going. With `128` it compiled 22 versions during the first 200 steps and then none for the rest of the run. The remaining versions come from things the bucket width cannot remove: one copy per GPU, train vs eval mode, Inductor's large/small tensor classes, and the small partial batch at the end of each packing window.
 - **Memory**: fewer distinct shapes also fragment the CUDA allocator less. The same fp8 SFT config ran out of memory on the primary GPU at step 20 with exact padding, at step 72 with `16`, and at step 792 with `128`, so wider buckets are the safer choice for a memory-tight configuration.
 - **Cost**: the extra padding is masked out of the loss (`-100` targets, causal attention), so the training math is unchanged, but it still costs compute. Measured on the `andres1s-350M` SFT data: about +14% padded tokens per epoch at `128`, +6% at `64`, about +1.5% at `16`.
-- **When it pays off**: only together with `--compile`. In eager mode (e.g. DPO, which does not compile) it is pure padding cost. Batch boundaries change with this setting, so start a stage fresh rather than resuming a checkpoint taken with a different value.
+- **When it pays off**: only together with `--compile` (SFT and DPO both compile `forward_features` with it). In eager mode it is pure padding cost. Batch boundaries change with this setting, so start a stage fresh rather than resuming a checkpoint taken with a different value.
 
 ---
 
@@ -721,7 +758,7 @@ Controls prompt token masking during instruction fine-tuning (`STAGE_TUNE`). Can
 - **Default**: `False`
 
 #### In-Depth Explanation
-Used during pretraining (`STAGE_TRAIN`). Proactively tokenizes and caches step counts across all text files in the corpus prior to starting training, saving the results to `steps_cache.json`. Ensures that step counts, progress bars, and ETA calculations are 100% accurate from step 1 instead of relying on running averages.
+Used during pretraining (`STAGE_TRAIN`). Proactively tokenizes and caches token counts across all text files in the corpus prior to starting training, saving the results to `steps_cache.json`. Pretraining tokenizes every file into its token cache (`<file>.tokens.npy` next to the text file, built once and memory-mapped afterwards) before the first step anyway, so step counts, progress and ETA are exact regardless; the flag only forces the scan and its per-file report up front.
 
 ---
 
@@ -821,3 +858,37 @@ The implicit reward temperature parameter $\beta$ in Direct Preference Optimizat
 - Typical values range from `0.05` to `0.2`.
 - Smaller $\beta$ (e.g. `0.05`) gives the policy model more freedom to adapt to preferences.
 - Larger $\beta$ (e.g. `0.2` to `0.5`) anchors the policy closely to the reference model, preserving general language coherence and preventing over-optimization.
+
+<a id="dpo_sft_weight"></a>
+<a id="--dpo_sft_weight"></a>
+### `--dpo_sft_weight`
+- **CLI Flag**: `--dpo_sft_weight`
+- **JSON Key**: `dpo_sft_weight`
+- **Type**: `float`
+- **Default**: `0.5`
+
+#### In-Depth Explanation
+DPO only (`STAGE_OPTIMIZE`). Adds the ordinary SFT loss on the chosen answer (its mean per-token negative log-likelihood) to the DPO loss:
+
+`loss = -log sigmoid(beta x (gap_policy - gap_reference)) + dpo_sft_weight x NLL(chosen)`
+
+This is the "NLL on chosen" / RPO term of the Llama 3 post-training recipe. Why it is needed: plain DPO only rewards a *growing gap* between the chosen and the rejected answer. It is therefore equally satisfied by making both answers less likely as long as the rejected one falls faster, and the probability that leaves them flows to whatever is left over. With per-token-averaged log-probs (the answer's end marker is a large share of a short answer) and preference sets that mostly prefer the shorter answer, andres-350M-2-fp8v2c (2026-10-14) collapsed to "answer in three words, then stop" within 180 updates while its margin and pair accuracy looked excellent, and it ended with WikiText perplexity 18,450. The earlier UltraFeedback-based attempt drifted the opposite way (never stop) for the same reason.
+
+The term pins the chosen answers' own likelihood, so the gap can only grow by pushing the rejected answers down. The log's `Chosen vs ref` value (policy minus reference log-prob of the chosen answers, per token) is the matching health signal: it should hover near or above 0; a steady fall is the collapse starting.
+
+- Default `0.5`: a chosen answer's NLL is ~1.5-2.5 nats per token, so the term is of the same order as the DPO term's initial 0.69.
+- `0` restores plain DPO.
+- The per-token form is used (no extra computation: the chosen log-probs are already needed for the DPO term).
+
+<a id="dpo_truncate_long_pairs"></a>
+<a id="--dpo_truncate_long_pairs"></a>
+### `--dpo_truncate_long_pairs`
+- **CLI Flag**: `--dpo_truncate_long_pairs`
+- **JSON Key**: `dpo_truncate_long_pairs`
+- **Type**: `bool`
+- **Default**: `False`
+
+#### In-Depth Explanation
+DPO only (`STAGE_OPTIMIZE`). By default a preference pair is dropped when its chosen or rejected answer, together with the prompt, runs past `max_length` (which the model's context window caps at 1,024 for the andres-350M models). With this flag the pair is kept and the over-long answer is cut: the prompt plus the head of the answer, with the `<|im_end|>` marker put back as the last token when the answer had one. Pairs whose prompt leaves fewer than 32 answer tokens are still dropped.
+
+Why: the sets that encode "the plain correct answer beats a longer flawed one" (OffsetBias in particular) have long rejected answers by construction, and the longest ones are lost to the length rule (4.6% of OffsetBias, 388 pairs, on andres-350M-2-fp8v2d). A truncated rejected answer still carries the elaboration the pair is meant to penalise; a truncated chosen answer keeps its content and its ending. Note that DPO batches are token-budgeted (batch_size x max_length tokens per micro-step, more pairs when they are short), so the step count does not reveal how many pairs were dropped; the [Data Filter] line does.

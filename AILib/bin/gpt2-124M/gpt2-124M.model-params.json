@@ -1,0 +1,14 @@
+{
+  "arch_family": "gpt2",
+  "vocab_size": 50304,
+  "context_length": 1024,
+  "emb_dim": 768,
+  "n_heads": 12,
+  "n_layers": 12,
+  "pos_emb_type": "absolute",
+  "norm_type": "layernorm",
+  "ffn_type": "gelu",
+  "drop_rate": 0.0,
+  "qkv_bias": true,
+  "tie_embeddings": true
+}

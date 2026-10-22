@@ -1,0 +1,226 @@
+[Options] Overrode 9 parameter(s) from 'test-autocast-cache.options-train.json': batch_size=4, accum_steps=2, num_epochs=2, learning_rate=0.0003, weight_decay=0.01, resume=False, eval_freq=2, single_gpu=True, precompute_total_steps=False
+=================================================================
+      FULLY-OPTIMIZED GPT TRAINING
+=================================================================
+Model: test-autocast-cache
+Device: cuda:0 | Active GPUs: 1 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.bfloat16)
+Model: test-autocast-cache (8 layers, 512 emb, 8 heads)
+Batch Size: 4 (Effective: 8) | Accum Steps: 2
+Epochs: 2 | AdamW LR: 0.0003 | Muon LR: 0.001 | Warmup Steps: 100
+Vocab: 50,304 | Context: 512 | Layers: 8 | Dim: 512 | Heads: 8
+Training Data Path: bin\test-autocast-cache\data\Training
+Total training files found: 1
+  [1/1] bin\test-autocast-cache\data\Training\TheVeredict\the-verdict.txt
+=================================================================
+torch.compile skipped (default: disabled, use --compile to enable)
+Optimizer Configured: 1 ([Single Fused AdamW for all layers, default])
+[Notice] Resume disabled. Starting TRAIN from initialized weights.
+[Checkpointing] Periodic saves enabled every 1000 steps -> 'test-autocast-cache'.
+[Data] 1 file(s): 5,148 tokens -> 9 train windows x 512 (2 steps/epoch of 4, 4 total global steps), 1 val windows | fixed eval buffers: 1 val + 1 train batch(es) sampled across all files.
+==================================================
+Starting Epoch 1/2
+==================================================
+Ep 1/2 (Step 000002/000002 - 100% | Global 000002/000004 - 50%): Train 10.731, Val 10.757 | PPL: 46941.51 | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000009
+[VRAM cuda:0] peak 1.558 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.795 | now 0.833 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Sample: <text>
+Val by dataset: TheVeredict 10.757
+[VRAM cuda:0] peak 1.077 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.314 | now 0.833 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Progress: 2/4 steps | Session elapsed: * (*) | ETA for remaining steps: * (*)
+[gptio] Saved TRAIN checkpoint (Step 2) to: bin\test-autocast-cache\test-autocast-cache.chk.trn
+==================================================
+Starting Epoch 2/2
+==================================================
+Ep 2/2 (Step 000002/000002 - 100% | Global 000004/000004 - 100%): Train 10.500, Val 10.569 | PPL: 38907.79 | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000015
+[VRAM cuda:0] peak 1.940 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 1.177 | now 0.832 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Sample: <text>
+Val by dataset: TheVeredict 10.569
+[VRAM cuda:0] peak 1.075 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.312 | now 0.832 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Progress: 4/4 steps | Session elapsed: * (*) | ETA for remaining steps: * (*)
+[gptio] Saved TRAIN checkpoint (Step 4) to: bin\test-autocast-cache\test-autocast-cache.chk.trn
+[gptio] Saved TRAIN checkpoint (Step 4) to: bin\test-autocast-cache\test-autocast-cache.chk.trn
+[modelio] Successfully saved clean final model to: bin\test-autocast-cache\test-autocast-cache.pth
+============================================================
+               TRAINING COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 8,192 (ideal: 1B-6.7B)
+  Final Losses       : Train 10.500 (ideal: 3.90-4.05) | Val 10.569 (ideal: 3.95-4.10)
+  Val - Train Gap    : +0.069 (UNDERFITTING!)
+  Perplexity         : 38907.79 (ideal: 51.7-60.1)
+  Model              : test-autocast-cache (~51.2M params)
+============================================================
+[Plot] Saved pretraining loss curves to 'bin\test-autocast-cache\test-autocast-cache-loss-plot-train.pdf'.
+[Options] Overrode 9 parameter(s) from 'test-autocast-cache.options-train.json': batch_size=4, accum_steps=2, num_epochs=2, learning_rate=0.0003, weight_decay=0.01, resume=False, eval_freq=2, single_gpu=True, precompute_total_steps=False
+=================================================================
+      FULLY-OPTIMIZED GPT TRAINING
+=================================================================
+Model: test-autocast-cache
+Device: cuda:0 | Active GPUs: 1 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.bfloat16)
+Model: test-autocast-cache (8 layers, 512 emb, 8 heads)
+Batch Size: 4 (Effective: 8) | Accum Steps: 2
+Epochs: 2 | AdamW LR: 0.0003 | Muon LR: 0.001 | Warmup Steps: 100
+Vocab: 50,304 | Context: 512 | Layers: 8 | Dim: 512 | Heads: 8
+Training Data Path: bin\test-autocast-cache\data\Training
+Total training files found: 1
+  [1/1] bin\test-autocast-cache\data\Training\TheVeredict\the-verdict.txt
+=================================================================
+[Low-VRAM Optimization] autocast weight cache enabled: the loss chunks share one low-precision copy of the LM head (frees (chunks - 1) copies; its gradient accumulates in the autocast dtype).
+torch.compile skipped (default: disabled, use --compile to enable)
+Optimizer Configured: 1 ([Single Fused AdamW for all layers, default])
+[Notice] Resume disabled. Starting TRAIN from initialized weights.
+[Checkpointing] Periodic saves enabled every 1000 steps -> 'test-autocast-cache'.
+[Data] 1 file(s): 5,148 tokens -> 9 train windows x 512 (2 steps/epoch of 4, 4 total global steps), 1 val windows | fixed eval buffers: 1 val + 1 train batch(es) sampled across all files.
+==================================================
+Starting Epoch 1/2
+==================================================
+Ep 1/2 (Step 000002/000002 - 100% | Global 000002/000004 - 50%): Train 10.731, Val 10.757 | PPL: 46942.36 | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000009
+[VRAM cuda:0] peak 1.414 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.651 | now 0.834 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Sample: <text>
+Val by dataset: TheVeredict 10.757
+[VRAM cuda:0] peak 1.078 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.315 | now 0.834 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Progress: 2/4 steps | Session elapsed: * (*) | ETA for remaining steps: * (*)
+[gptio] Saved TRAIN checkpoint (Step 2) to: bin\test-autocast-cache\test-autocast-cache.chk.trn
+==================================================
+Starting Epoch 2/2
+==================================================
+Ep 2/2 (Step 000002/000002 - 100% | Global 000004/000004 - 100%): Train 10.500, Val 10.569 | PPL: 38908.72 | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000015
+[VRAM cuda:0] peak 1.797 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 1.034 | now 0.834 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Sample: <text>
+Val by dataset: TheVeredict 10.569
+[VRAM cuda:0] peak 1.077 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.314 | now 0.834 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Progress: 4/4 steps | Session elapsed: * (*) | ETA for remaining steps: * (*)
+[gptio] Saved TRAIN checkpoint (Step 4) to: bin\test-autocast-cache\test-autocast-cache.chk.trn
+[gptio] Saved TRAIN checkpoint (Step 4) to: bin\test-autocast-cache\test-autocast-cache.chk.trn
+[modelio] Successfully saved clean final model to: bin\test-autocast-cache\test-autocast-cache.pth
+============================================================
+               TRAINING COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 8,192 (ideal: 1B-6.7B)
+  Final Losses       : Train 10.500 (ideal: 3.90-4.05) | Val 10.569 (ideal: 3.95-4.10)
+  Val - Train Gap    : +0.069 (UNDERFITTING!)
+  Perplexity         : 38908.72 (ideal: 51.7-60.1)
+  Model              : test-autocast-cache (~51.2M params)
+============================================================
+[Plot] Saved pretraining loss curves to 'bin\test-autocast-cache\test-autocast-cache-loss-plot-train.pdf'.
+[Options] Overrode 9 parameter(s) from 'test-autocast-cache.options-tune.json': batch_size=4, accum_steps=2, num_epochs=1, learning_rate=0.0003, max_length=256, chunk_size=128, eval_freq=5, single_gpu=True, precompute_total_steps=True
+[Memory] cuda:0: allocator cache capped at 15.10 GiB of 15.89 GiB (* GiB already in use as seen by CUDA).
+=================================================================
+      FULLY-OPTIMIZED GPT INSTRUCTION FINE-TUNING (SFT)
+=================================================================
+Device: cuda:0 | Active GPUs: 1 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.bfloat16)
+Model: test-autocast-cache (8 layers, 512 emb, 8 heads)
+Batch Size: 4 (Accum Steps: 2) | Epochs: 1 | Peak LR: 0.000300
+Instruction Data: bin\test-autocast-cache\data\Tuning (1 file(s))
+  [1/1] combined_1.txt
+=================================================================
+[Fine-Tuning] Resume disabled. Initialized model from base pre-trained checkpoint (.chk.trn). Starting Fine-Tuning from Step 0.
+[Training Plan] This pass streamed 34 batches where the plan said 31 (+9.7%); the steps cache now holds the exact count and every later plan uses it (a resumed run re-anchors its LR cosine on the new horizon instead of jumping).
+[Steps Precompute] SFT: streamed the first epoch's 34 batches on the CPU in * to record the exact step counts of 1 file(s) (steps_cache.json).
+[Validation Buffer] Built fixed stratified SFT validation buffer: 8 batches across 1 file(s).
+[Streaming Loader] Initialized streaming instruction loader across 1 file(s): ~34 train steps, ~8 val steps | step plan: exact (steps cache).
+[Training Plan] Target epochs: 1 | Steps per epoch: 34 (Optimizer updates: 17) | Planned updates: 17 | Step plan: exact (steps cache)
+[Gradient Accumulation] Accumulating gradients over 2 sub-steps before optimizer update.
+[Checkpointing] Model target: 'test-autocast-cache'
+[Initial State Evaluation]
+  Initial Train Loss : 10.6473
+  Initial Val Loss   : 10.6117 (Seq: 10.6136) (PPL: Resp 40607.41 | Seq 40685.94) (Eval took *)
+======================================================================
+Starting Fine-Tuning Epoch 1/1
+======================================================================
+Ep 1/1 (Step 000010/000034 - 29% | Global 000005/000017 - 29%): Train 9.689, Val 8.988 (Seq 9.318) | PPL: 8006.14 (Seq 11131.36) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000241
+[VRAM cuda:0] peak 1.650 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.886 | now 0.640 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Ep 1/1 (Step 000020/000034 - 59% | Global 000010/000017 - 59%): Train 8.827, Val 8.397 (Seq 8.942) | PPL: 4434.20 (Seq 7646.92) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000110
+[VRAM cuda:0] peak 1.655 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.892 | now 0.640 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Ep 1/1 (Step 000030/000034 - 88% | Global 000015/000017 - 88%): Train 8.454, Val 8.200 (Seq 8.736) | PPL: 3641.82 (Seq 6220.75) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000011
+[VRAM cuda:0] peak 1.654 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.890 | now 0.640 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+----------------------------------------------------------------------
+[Sample Response @ Epoch 1]
+  Prompt/Inst : <|user|>
+Evaluate the following phrase by transforming it into the spelling give...
+  Response    : <text>
+----------------------------------------------------------------------
+[gptio] Saved TUNE checkpoint (Step 17) to: bin\test-autocast-cache\test-autocast-cache.chk.sft
+[VRAM cuda:0] peak 1.644 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.881 | now 0.640 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+File processed: * | Total elapsed: * | ETA for remaining files: *
+[gptio] Saved TUNE checkpoint (Step 17) to: bin\test-autocast-cache\test-autocast-cache.chk.sft
+[modelio] Successfully saved clean final model to: bin\test-autocast-cache\test-autocast-cache.pth
+============================================================
+               FINE-TUNING COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 25,774 (ideal: 200M-1B)
+  Final Losses       : Train 8.454 | Val 8.200 (Seq: 8.736, ideal: 2.25-2.55)
+  Val - Train Gap    : -0.253 (UNDERFITTING!)
+  Perplexity         : Resp 3641.82 | Seq 6220.75 (ideal: 9.5-12.8)
+  Model              : test-autocast-cache (~51.2M params)
+============================================================
+[Plot] Saved fine-tuning loss curves to 'bin\test-autocast-cache\test-autocast-cache-loss-plot-tune.pdf'.
+[Options] Overrode 9 parameter(s) from 'test-autocast-cache.options-tune.json': batch_size=4, accum_steps=2, num_epochs=1, learning_rate=0.0003, max_length=256, chunk_size=128, eval_freq=5, single_gpu=True, precompute_total_steps=True
+[Memory] cuda:0: allocator cache capped at 15.10 GiB of 15.89 GiB (* GiB already in use as seen by CUDA).
+=================================================================
+      FULLY-OPTIMIZED GPT INSTRUCTION FINE-TUNING (SFT)
+=================================================================
+Device: cuda:0 | Active GPUs: 1 | Precision: FP16 | Model Dtype: torch.float32 | AMP: Enabled (torch.bfloat16)
+Model: test-autocast-cache (8 layers, 512 emb, 8 heads)
+Batch Size: 4 (Accum Steps: 2) | Epochs: 1 | Peak LR: 0.000300
+Instruction Data: bin\test-autocast-cache\data\Tuning (1 file(s))
+  [1/1] combined_1.txt
+=================================================================
+[Low-VRAM Optimization] autocast weight cache enabled: the loss chunks share one low-precision copy of the LM head (frees (chunks - 1) copies; its gradient accumulates in the autocast dtype).
+[Fine-Tuning] Resume disabled. Initialized model from base pre-trained checkpoint (.chk.trn). Starting Fine-Tuning from Step 0.
+[Training Plan] This pass streamed 34 batches where the plan said 31 (+9.7%); the steps cache now holds the exact count and every later plan uses it (a resumed run re-anchors its LR cosine on the new horizon instead of jumping).
+[Steps Precompute] SFT: streamed the first epoch's 34 batches on the CPU in * to record the exact step counts of 1 file(s) (steps_cache.json).
+[Validation Buffer] Built fixed stratified SFT validation buffer: 8 batches across 1 file(s).
+[Streaming Loader] Initialized streaming instruction loader across 1 file(s): ~34 train steps, ~8 val steps | step plan: exact (steps cache).
+[Training Plan] Target epochs: 1 | Steps per epoch: 34 (Optimizer updates: 17) | Planned updates: 17 | Step plan: exact (steps cache)
+[Gradient Accumulation] Accumulating gradients over 2 sub-steps before optimizer update.
+[Checkpointing] Model target: 'test-autocast-cache'
+[Initial State Evaluation]
+  Initial Train Loss : 10.6473
+  Initial Val Loss   : 10.6117 (Seq: 10.6136) (PPL: Resp 40607.41 | Seq 40685.94) (Eval took *)
+======================================================================
+Starting Fine-Tuning Epoch 1/1
+======================================================================
+Ep 1/1 (Step 000010/000034 - 29% | Global 000005/000017 - 29%): Train 9.689, Val 8.988 (Seq 9.318) | PPL: 8008.11 (Seq 11134.38) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000241
+[VRAM cuda:0] peak 1.309 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.546 | now 0.640 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Ep 1/1 (Step 000020/000034 - 59% | Global 000010/000017 - 59%): Train 8.827, Val 8.397 (Seq 8.942) | PPL: 4434.99 (Seq 7649.31) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000110
+[VRAM cuda:0] peak 1.315 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.552 | now 0.640 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+Ep 1/1 (Step 000030/000034 - 88% | Global 000015/000017 - 88%): Train 8.454, Val 8.200 (Seq 8.736) | PPL: 3642.15 (Seq 6221.84) | Step tok/sec: *, Avg tok/sec: * | Eval: * | LR: 0.000011
+[VRAM cuda:0] peak 1.314 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.550 | now 0.640 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+----------------------------------------------------------------------
+[Sample Response @ Epoch 1]
+  Prompt/Inst : <|user|>
+Evaluate the following phrase by transforming it into the spelling give...
+  Response    : <text>
+----------------------------------------------------------------------
+[gptio] Saved TUNE checkpoint (Step 17) to: bin\test-autocast-cache\test-autocast-cache.chk.sft
+[VRAM cuda:0] peak 1.304 GB = weights 0.191 + grads 0.191 + optim 0.382 + other 0.541 | now 0.640 | reserved * (unused *) | process * | device * used (others *) | alloc retries *
+File processed: * | Total elapsed: * | ETA for remaining files: *
+[gptio] Saved TUNE checkpoint (Step 17) to: bin\test-autocast-cache\test-autocast-cache.chk.sft
+[modelio] Successfully saved clean final model to: bin\test-autocast-cache\test-autocast-cache.pth
+============================================================
+               FINE-TUNING COMPLETED
+============================================================
+  Total Elapsed Time : * (*)
+  Total Tokens Seen  : 25,774 (ideal: 200M-1B)
+  Final Losses       : Train 8.454 | Val 8.200 (Seq: 8.736, ideal: 2.25-2.55)
+  Val - Train Gap    : -0.253 (UNDERFITTING!)
+  Perplexity         : Resp 3642.15 | Seq 6221.84 (ideal: 9.5-12.8)
+  Model              : test-autocast-cache (~51.2M params)
+============================================================
+[Plot] Saved fine-tuning loss curves to 'bin\test-autocast-cache\test-autocast-cache-loss-plot-tune.pdf'.
+[Options] Overrode 9 parameter(s) from 'test-autocast-cache.options-train.json': batch_size=4, accum_steps=2, num_epochs=2, learning_rate=0.0003, weight_decay=0.01, resume=False, eval_freq=2, single_gpu=True, precompute_total_steps=False
+[Options] Overrode 5 parameter(s) from 'test-autocast-cache.options-infer.json': temperature=0.7, top_k=50, top_p=0.9, single_gpu=True, gpu_index=0
+[SpellCheck] Autocorrect initialized (SymSpell dictionary-based cleanup active).
+============================================================
+           Interactive GPT Conversation Console
+============================================================
+Model Target    : test-autocast-cache
+Precision       : FP16 (dtype: torch.bfloat16)
+Device          : cuda:0 (Available GPUs: 0)
+Temperature     : 0.7 | Top-K: 50 | Top-P: 0.9
+System Prompt   : You are a helpful and coherent AI assistant.
+============================================================
+[modelio] Successfully loaded model weights from: bin\test-autocast-cache\test-autocast-cache.pth
+⚡ [Performance] Response: * tok/s | Session Avg: * tok/s | Tokens: * in *

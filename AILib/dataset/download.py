@@ -1,3 +1,4 @@
+import gc
 import json
 import os
 import sys
@@ -256,6 +257,43 @@ def iterate_dataset_items(
 # Core Dataset Downloader & Preparer
 # ==============================================================================
 
+def check_dataset_exists(
+    dataset_key: str = "",
+    model_name: str = "",
+    models_base_dir: str = "",
+    dataset_purpose: Optional[str] = None,
+) -> Optional[Path]:
+    """
+    Checks if a dataset subfolder already exists under the model's data directory.
+    If dataset_purpose is specified (train, tune, optimize), checks that specific stage folder.
+    Otherwise, checks across all stages (Tuning, Training, Optimizing).
+    Returns the Path to the existing dataset directory if found, otherwise None.
+    """
+    if not model_name or not dataset_key:
+        return None
+
+    dataset_key = dataset_key.lower().strip()
+    found_purpose, found_info = find_dataset_entry(dataset_key, purpose=dataset_purpose)
+    if found_info is not None:
+        dataset_name = dataset_key
+        effective_purpose = dataset_purpose or found_purpose or STAGE_TRAIN
+    else:
+        if dataset_key.startswith("http://") or dataset_key.startswith("https://"):
+            dataset_name = "custom_url_dataset"
+        else:
+            dataset_name = dataset_key.replace("/", "_")
+        effective_purpose = dataset_purpose or STAGE_TRAIN
+
+    stages_to_check = [effective_purpose] if dataset_purpose else [effective_purpose, STAGE_TUNE, STAGE_TRAIN, STAGE_OPTIMIZE]
+    for stage_cand in stages_to_check:
+        if not stage_cand:
+            continue
+        cand_dir = resolve_path(model_name, TARGET_DATA, stage=stage_cand, models_dir=models_base_dir or "bin") / dataset_name
+        if cand_dir.exists():
+            return cand_dir
+    return None
+
+
 def download_and_prepare_dataset(
     dataset_key: str = "",
     model_name: str = "",
@@ -306,6 +344,16 @@ def download_and_prepare_dataset(
         else:
             effective_purpose = STAGE_TRAIN
 
+    existing_dir = check_dataset_exists(
+        dataset_key=dataset_key,
+        model_name=model_name,
+        models_base_dir=models_base_dir,
+        dataset_purpose=dataset_purpose,
+    )
+    if existing_dir is not None:
+        print(f"[Warning] Dataset '{dataset_name}' already exists at '{existing_dir}'. Skipping download.")
+        return [str(p) for p in existing_dir.glob("*") if p.is_file()]
+
     target_dir = resolve_path(model_name, TARGET_DATA, stage=effective_purpose, models_dir=models_base_dir or "bin") / dataset_name
     target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -348,14 +396,17 @@ def download_and_prepare_dataset(
             with open(chunk_path, "w", encoding="utf-8") as f:
                 json.dump(current_content, f, indent=2)
             size_mb = os.path.getsize(chunk_path) / (1024 * 1024)
-            print(f"\n -> Saved {chunk_path.name} ({size_mb:.2f} MB with {len(current_content):,} preference pairs)")
+            saved_msg = f" -> Saved {chunk_path.name} ({size_mb:.2f} MB with {len(current_content):,} preference pairs)"
         else:
             chunk_path = target_dir / f"combined_{file_counter}.txt"
             joined_text = f"\n{separator}\n".join(current_content)
             with open(chunk_path, "w", encoding="utf-8") as f:
                 f.write(joined_text)
             size_mb = os.path.getsize(chunk_path) / (1024 * 1024)
-            print(f"\n -> Saved {chunk_path.name} ({size_mb:.2f} MB with {len(current_content):,} documents)")
+            saved_msg = f" -> Saved {chunk_path.name} ({size_mb:.2f} MB with {len(current_content):,} documents)"
+        getattr(progress_bar, "clear", lambda: None)()  # wipe the bar line, print above it, then redraw the bar below
+        print(saved_msg)
+        getattr(progress_bar, "refresh", lambda: None)()
         saved_files.append(str(chunk_path))
         file_counter += 1
         current_content = []
@@ -366,6 +417,32 @@ def download_and_prepare_dataset(
             progress_bar.total = total_count
             if hasattr(progress_bar, "refresh"):
                 progress_bar.refresh()
+
+    def add_item(clean_item: Any) -> bool:
+        """Files one cleaned item into the current chunk; returns False once the item limit is reached."""
+        nonlocal valid_count, current_size_bytes
+        valid_count += 1
+
+        if save_raw:
+            raw_ext = "json" if is_json else "txt"
+            raw_file = raw_dir / f"doc_{valid_count}.{raw_ext}"
+            with open(raw_file, "w", encoding="utf-8") as rf:
+                if is_json:
+                    json.dump(clean_item, rf, indent=2)
+                else:
+                    rf.write(clean_item)
+
+        if is_json:
+            item_bytes = len(json.dumps(clean_item, ensure_ascii=False).encode("utf-8"))
+        else:
+            item_bytes = len(clean_item.encode("utf-8"))
+
+        if current_size_bytes + item_bytes > target_bytes and current_content:
+            flush_chunk()
+
+        current_content.append(clean_item)
+        current_size_bytes += item_bytes
+        return not (limit and valid_count >= limit)
 
     try:
         item_iterator = iterate_dataset_items(
@@ -387,33 +464,17 @@ def download_and_prepare_dataset(
                 print(f"  Processed {processed_count} items ({valid_count} valid)...", end="\r")
 
             clean_item = cleaner_fn(item)
-            if not clean_item:
-                continue
-
-            valid_count += 1
-
-            if save_raw:
-                raw_ext = "json" if is_json else "txt"
-                raw_file = raw_dir / f"doc_{valid_count}.{raw_ext}"
-                with open(raw_file, "w", encoding="utf-8") as rf:
-                    if is_json:
-                        json.dump(clean_item, rf, indent=2)
-                    else:
-                        rf.write(clean_item)
-
-            if is_json:
-                item_bytes = len(json.dumps(clean_item, ensure_ascii=False).encode("utf-8"))
-            else:
-                item_bytes = len(clean_item.encode("utf-8"))
-
-            if current_size_bytes + item_bytes > target_bytes and current_content:
-                flush_chunk()
-
-            current_content.append(clean_item)
-            current_size_bytes += item_bytes
-
-            if limit and valid_count >= limit:
+            if clean_item and not add_item(clean_item):
                 break
+        else:
+            # Cleaners that assemble items from several rows (e.g. OpenAssistant conversation trees) hand them over once the stream ends
+            for clean_item in (cleaner_fn.flush() if hasattr(cleaner_fn, "flush") else []):
+                if clean_item and not add_item(clean_item):
+                    break
+        # Stopping early leaves pyarrow still reading in the background, which crashes interpreter shutdown: close the stream and let it settle
+        item_iterator.close()
+        gc.collect()
+        time.sleep(1)
 
     except KeyboardInterrupt:
         print("\n[INFO] Download interrupted by user. Finalizing accumulated chunks...")

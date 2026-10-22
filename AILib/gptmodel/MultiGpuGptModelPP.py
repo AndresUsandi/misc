@@ -18,7 +18,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from gptmodel.GptModel import GptModel, safe_add, LOGIT_CLAMP_MAX, LOGIT_CLAMP_MIN, UNEVEN_LAYERS_GPU0_RATIO
+from gptmodel.GptModel import GptModel, safe_add, compute_dtype_stream, LOGIT_CLAMP_MAX, LOGIT_CLAMP_MIN, UNEVEN_LAYERS_GPU0_RATIO
 
 
 class MultiGpuGptModelPP(nn.Module):
@@ -65,9 +65,14 @@ class MultiGpuGptModelPP(nn.Module):
 
         last_device = self.devices[-1]
         self.raw_model.final_norm.to(last_device)
+        # Tied embeddings with the head on another device: the head gets a device-local copy of tok_emb.weight that stays tied in effect:
+        # excluded from parameters() (one trainable matrix, as on one device), its gradient joins the embedding's before every optimizer
+        # update (reduce_gradients) and it takes the updated embedding afterwards (sync_weights), so tok_emb and out_head never drift apart
+        self._tied_head_copy: Optional[nn.Parameter] = None
         if self.devices[0] != last_device and (self.raw_model.out_head.weight.data_ptr() == self.raw_model.tok_emb.weight.data_ptr()):
             weight_copy = self.raw_model.tok_emb.weight.data.clone().to(last_device)
             self.raw_model.out_head.weight = nn.Parameter(weight_copy)
+            self._tied_head_copy = self.raw_model.out_head.weight
         else:
             self.raw_model.out_head.to(last_device)
         self.raw_model.tok_emb.to(self.devices[0])
@@ -129,6 +134,28 @@ class MultiGpuGptModelPP(nn.Module):
     def reset_kv_cache(self):
         self.raw_model.reset_kv_cache()
 
+    def parameters(self, recurse: bool = True):
+        """The trainable parameters: the tied head copy is left out (it is tok_emb.weight, held on the head's device; see reduce_gradients)."""
+        return (p for p in self.raw_model.parameters(recurse=recurse) if p is not self._tied_head_copy)
+
+    def named_parameters(self, prefix: str = "", recurse: bool = True):
+        return ((n, p) for n, p in self.raw_model.named_parameters(prefix=prefix, recurse=recurse) if p is not self._tied_head_copy)
+
+    def reduce_gradients(self):
+        """Once per optimizer update, before clipping: the tied head copy's gradient joins the embedding's, as a tied matrix on one device would have received both."""
+        c = self._tied_head_copy
+        if c is not None and c.grad is not None:
+            e = self.raw_model.tok_emb.weight
+            g = c.grad.to(e.device)
+            e.grad = g if e.grad is None else e.grad.add_(g)
+            c.grad = None
+
+    def sync_weights(self):
+        """After the optimizer update: the tied head copy takes the updated embedding."""
+        if self._tied_head_copy is not None:
+            with torch.no_grad():
+                self._tied_head_copy.copy_(self.raw_model.tok_emb.weight.to(self._tied_head_copy.device))
+
     def transfer_tensor(self, t: torch.Tensor, target_device: torch.device) -> torch.Tensor:
         """Transfers tensor t to target_device safely with cross-device CUDA event synchronization if async_pcie is active."""
         if t.device == target_device:
@@ -162,6 +189,7 @@ class MultiGpuGptModelPP(nn.Module):
 
         if self.raw_model.pos_emb is not None:
             x = safe_add(x, self.raw_model.pos_emb(pos_ids).unsqueeze(0))
+        x = compute_dtype_stream(x)
 
         if hasattr(self.raw_model, "drop_emb"):
             x = self.raw_model.drop_emb(x)
@@ -217,6 +245,7 @@ class MultiGpuGptModelPP(nn.Module):
 
         if self.raw_model.pos_emb is not None:
             x = safe_add(x, self.raw_model.pos_emb(pos_ids).unsqueeze(0))
+        x = compute_dtype_stream(x)
 
         if hasattr(self.raw_model, "drop_emb"):
             x = self.raw_model.drop_emb(x)

@@ -9,5 +9,6 @@
     "single_gpu": true,
     "activation_checkpointing": true,
     "freeze_embeddings": true,
-    "eval_freq": 2
+    "eval_freq": 2,
+    "precompute_total_steps": true
 }

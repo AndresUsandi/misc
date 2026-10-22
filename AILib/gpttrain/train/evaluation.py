@@ -43,8 +43,10 @@ def calc_loss_batch(
     use_amp: Optional[bool] = None,
     scaler: Optional[Any] = None,
     seq_target_batch: Optional[torch.Tensor] = None,
+    autocast_weight_cache: bool = False,
 ) -> Any:
-    """seq_target_batch: optional second target mask scored on the same forward pass; when given, returns (loss, seq_loss)."""
+    """seq_target_batch: optional second target mask scored on the same forward pass; when given, returns (loss, seq_loss).
+    autocast_weight_cache (--use_autocast_weight_cache): autocast's weight cache for the single-GPU forward; never with activation checkpointing."""
     raw_model = getattr(model, "raw_model", getattr(model, "module", model))
     raw_model = getattr(raw_model, "_orig_mod", raw_model)
 
@@ -75,7 +77,7 @@ def calc_loss_batch(
 
     if effective_stages >= 2 and hasattr(model, "forward_backward_multi_stage_pipelined") and input_batch.shape[0] >= 2:
         if should_autocast:
-            with torch.amp.autocast(device_type="cuda", dtype=amp_dtype):
+            with torch.amp.autocast(device_type="cuda", dtype=amp_dtype, cache_enabled=not activation_checkpointing):
                 res = model.forward_backward_multi_stage_pipelined(
                     input_batch, target_batch, num_micro_batches=effective_stages,
                     chunk_size=chunk_size, accum_steps=accum_steps,
@@ -99,7 +101,11 @@ def calc_loss_batch(
         active_tokens = (flat_targets != -100).sum()
         return (logits.flatten(0, 1) * 0.0).sum() if active_tokens == 0 else F.cross_entropy(logits.flatten(0, 1), flat_targets)
 
-    with (torch.amp.autocast(device_type="cuda", dtype=amp_dtype) if should_autocast else nullcontext()):
+    # cache_enabled=False by default: with activation checkpointing the cache would pin the bf16 copy of every weight until the forward ends (~2 bytes
+    # per parameter); without it the cache makes the loss chunks share one copy of the LM head, so autograd sums their partial gradients in the
+    # autocast dtype instead of fp32 (measured: 2.8e-4 relative change of the head gradient in fp16). --use_autocast_weight_cache opts into that
+    # trade for the memory ((chunks - 1) head copies); --recompute_lmhead frees those copies exactly.
+    with (torch.amp.autocast(device_type="cuda", dtype=amp_dtype, cache_enabled=autocast_weight_cache and not activation_checkpointing) if should_autocast else nullcontext()):
         if hasattr(model, "forward_features"):
             hidden = forward_features(input_batch, activation_checkpointing=activation_checkpointing)
             loss_fn = lambda tgt: chunked_loss(hidden, tgt, chunk_size)

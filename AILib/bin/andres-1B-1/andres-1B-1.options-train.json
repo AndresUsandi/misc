@@ -1,0 +1,11 @@
+{
+    "batch_size": 4,
+    "accum_steps": 2,
+    "num_epochs": 3,
+    "multi_stage_micro_batching": 4,
+    "learning_rate": 0.0005,
+    "single_gpu": false,
+    "multi_gpu_strategy": "data-parallelism",
+    "gpu_index": 0,
+    "precompute_total_steps": false
+}

@@ -4,5 +4,6 @@
     "num_epochs": 1,
     "learning_rate": 0.0005,
     "eval_freq": 1,
-    "single_gpu": true
+    "single_gpu": true,
+    "precompute_total_steps": false
 }

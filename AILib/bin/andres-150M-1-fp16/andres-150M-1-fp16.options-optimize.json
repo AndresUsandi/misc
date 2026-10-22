@@ -1,0 +1,17 @@
+{
+    "pol_device": 0,
+    "ref_device": 1,
+    "batch_size": 1,
+    "accum_steps": 4,
+    "num_epochs": 1,
+    "multi_stage_micro_batching": 4,
+    "learning_rate": 0.000005,
+    "beta": 0.1,
+    "max_length": 512,
+    "pad_to_multiple_of": 128,
+    "compile": true,
+    "single_gpu": false,
+    "multi_gpu_strategy": "data-parallelism",
+    "gpu_index": 0,
+    "precompute_total_steps": true
+}
